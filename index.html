@@ -9,42 +9,50 @@
     <link rel="manifest" href="data:application/manifest+json,{'name':'FlashLearn','short_name':'Flash','start_url':'.','display':'standalone','background_color':'#f4f4f9','theme_color':'#007bff'}">
     
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #333; }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #333; --anki-new: #007bff; --anki-learn: #dc3545; --anki-due: #28a745; }
         body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f4f4f9; color: var(--dark); display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
         
-        header { background: var(--primary); color: white; padding: env(safe-area-inset-top) 15px 15px; text-align: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        header { background: var(--primary); color: white; padding: env(safe-area-inset-top) 15px 15px; text-align: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
         
-        nav { display: flex; background: #0056b3; }
+        nav { display: flex; background: #0056b3; z-index: 10; }
         nav button { flex: 1; padding: 12px; background: none; border: none; color: rgba(255,255,255,0.7); font-size: 0.9rem; transition: 0.3s; }
         nav button.active { color: white; border-bottom: 3px solid #ffc107; font-weight: bold; }
         
-        main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; position: relative; }
         
-        /* Karten-Styling für Swipes */
-        .card { background: white; padding: 30px 20px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); width: 100%; max-width: 400px; text-align: center; min-height: 350px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; position: relative; }
-        .card:active { transform: scale(0.98); }
+        /* Karten-Stapel (Tinder-Look) */
+        .card-stack { position: relative; width: 100%; max-width: 400px; display: flex; justify-content: center; align-items: center; min-height: 350px; margin-top: 20px; }
+        
+        /* Die Dummy-Karte im Hintergrund */
+        .card-bg { position: absolute; width: 95%; height: 95%; background: white; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); top: 15px; z-index: 1; }
+        
+        /* Die echte, ziehbare Karte */
+        .card { background: white; padding: 30px 20px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; height: 100%; text-align: center; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; cursor: pointer; z-index: 2; position: absolute; will-change: transform; }
         
         .question { font-size: 1.8rem; font-weight: 700; color: #222; }
         .answer { font-size: 1.5rem; color: #666; margin-top: 25px; border-top: 2px dashed #eee; padding-top: 25px; animation: fadeIn 0.3s; }
         
-        /* Swipe Hint Text */
-        .swipe-hint { position: absolute; bottom: 15px; left: 0; width: 100%; font-size: 0.8rem; color: #aaa; text-align: center; pointer-events: none; }
+        .swipe-hint { position: absolute; bottom: 15px; left: 0; width: 100%; font-size: 0.85rem; color: #aaa; text-align: center; font-weight: bold; transition: color 0.2s; pointer-events: none; }
 
-        .controls { display: flex; gap: 12px; width: 100%; max-width: 400px; margin-top: 20px; }
-        .action-btn { flex: 1; padding: 18px; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; color: white; }
-        .btn-show { background: var(--primary); width: 100%; max-width: 400px; margin-top: 20px; }
+        .controls { display: flex; gap: 12px; width: 100%; max-width: 400px; margin-top: 30px; z-index: 10; }
+        .action-btn { flex: 1; padding: 18px; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; color: white; cursor: pointer; }
+        .btn-show { background: var(--primary); width: 100%; max-width: 400px; margin-top: 30px; z-index: 10; }
         .btn-hard { background: var(--danger); }
         .btn-easy { background: var(--success); }
         
+        /* Anki-Statistik Leiste unten */
+        .anki-stats { display: flex; justify-content: space-around; width: 100%; max-width: 400px; margin-top: auto; padding-top: 20px; font-size: 0.95rem; font-weight: bold; border-top: 1px solid #ddd; padding-bottom: 10px; }
+        .stat-new { color: var(--anki-new); }
+        .stat-learn { color: var(--anki-learn); }
+        .stat-due { color: var(--anki-due); }
+
         .hidden { display: none !important; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* Listen-Ansicht */
         .card-list { width: 100%; max-width: 400px; margin-top: 20px; }
-        .list-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
-        .btn-del { color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer;}
-        
-        .stats { font-size: 0.9rem; margin-bottom: 15px; color: #888; font-weight: bold; }
+        .list-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; border: 1px solid #eee; }
+        .btn-del { color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -57,24 +65,31 @@
     </nav>
 
     <main id="view-learn">
-        <div class="stats" id="due-count">Karten fällig: 0</div>
         
-        <div id="card-container" class="card">
-            <div id="question-text" class="question">...</div>
-            <div id="answer-text" class="answer hidden"></div>
-            <div id="swipe-hint" class="swipe-hint">Tippen zum Umdrehen</div>
+        <div id="stack-container" class="card-stack">
+            <div id="card-bg" class="card-bg"></div> <div id="card-container" class="card">
+                <div id="question-text" class="question">...</div>
+                <div id="answer-text" class="answer hidden"></div>
+                <div id="swipe-hint" class="swipe-hint">Tippen zum Umdrehen</div>
+            </div>
         </div>
         
         <button id="show-btn" class="action-btn btn-show" onclick="showAnswer()">Antwort zeigen</button>
         
         <div id="feedback-btns" class="controls hidden">
-            <button class="action-btn btn-hard" onclick="rateCard('hard')">👈 Schwer</button>
-            <button class="action-btn btn-easy" onclick="rateCard('easy')">Einfach 👉</button>
+            <button class="action-btn btn-hard" onclick="rateCardButton('hard')">👈 Schwer</button>
+            <button class="action-btn btn-easy" onclick="rateCardButton('easy')">Einfach 👉</button>
         </div>
         
-        <div id="done-msg" class="msg hidden" style="text-align: center; margin-top: 40px;">
+        <div id="done-msg" class="msg hidden" style="text-align: center; margin-top: 60px;">
             <h2 style="font-size: 3rem; margin: 0;">🎉</h2>
-            <p style="font-size: 1.2rem; color: #555;">Alles erledigt!<br>Warte auf fällige Karten...</p>
+            <p style="font-size: 1.2rem; color: #555;">Alles erledigt!<br>Du bist auf dem neuesten Stand.</p>
+        </div>
+
+        <div class="anki-stats" id="anki-stats-bar">
+            <span class="stat-new" id="stat-new">0 Neu</span>
+            <span class="stat-learn" id="stat-learn">0 Lernen</span>
+            <span class="stat-due" id="stat-due">0 Fällig</span>
         </div>
     </main>
 
@@ -93,48 +108,103 @@
     </main>
 
     <script>
-        // Lade Deck oder erstelle Standard-Karten
+        // Initiale Daten laden & auf neues Format (mit 'reviews') updaten
         let deck = JSON.parse(localStorage.getItem('myAnkiDeck')) || [
-            { q: "Wische nach Links 👈", a: "Wenn du es nicht wusstest (1 Min)", nextReview: Date.now(), id: 1, streak: 0 },
-            { q: "Wische nach Rechts 👉", a: "Wenn du es wusstest (10 Min / 24h)", nextReview: Date.now(), id: 2, streak: 0 }
+            { q: "Wische mich", a: "Zieh mich mit dem Daumen! 👉", nextReview: Date.now(), id: 1, streak: 0, reviews: 0 }
         ];
+
+        // Daten-Migration für alte Karten
+        deck.forEach(c => {
+            if (typeof c.reviews === 'undefined') c.reviews = 0;
+            if (typeof c.streak === 'undefined') c.streak = 0;
+        });
 
         let currentCardIndex = -1;
 
-        // --- GESTENSTEUERUNG (SWIPE & TAP) ---
-        let touchstartX = 0;
-        let touchendX = 0;
-        const swipeThreshold = 50; // Mindest-Pixel für einen Swipe
+        // --- GESTENSTEUERUNG MIT PHYSIK ---
         const cardEl = document.getElementById('card-container');
+        const hintEl = document.getElementById('swipe-hint');
+        let isDragging = false;
+        let startX = 0, startY = 0;
 
-        // Karte antippen = Umdrehen
+        // Tippen (Umdrehen)
         cardEl.addEventListener('click', () => {
-            if (document.getElementById('answer-text').classList.contains('hidden')) {
+            if (!isDragging && document.getElementById('answer-text').classList.contains('hidden')) {
                 showAnswer();
             }
         });
 
-        // Wischen starten
         cardEl.addEventListener('touchstart', e => {
-            touchstartX = e.changedTouches[0].screenX;
+            if (document.getElementById('answer-text').classList.contains('hidden')) return; // Nur wischen wenn Antwort sichtbar
+            isDragging = true;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            cardEl.style.transition = 'none'; // Sofortiges Folgen ohne Verzögerung
         }, {passive: true});
 
-        // Wischen beenden
+        cardEl.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            const deltaX = currentX - startX;
+            const deltaY = currentY - startY;
+            
+            // Karte drehen beim Ziehen
+            const rotate = deltaX * 0.05;
+            cardEl.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(${rotate}deg)`;
+            
+            // Text unten ändert sich dynamisch je nach Wisch-Richtung
+            if (deltaX > 60) {
+                hintEl.innerText = "Einfach 👉";
+                hintEl.style.color = "var(--success)";
+            } else if (deltaX < -60) {
+                hintEl.innerText = "👈 Schwer";
+                hintEl.style.color = "var(--danger)";
+            } else {
+                hintEl.innerText = "Wischen zum Bewerten";
+                hintEl.style.color = "#aaa";
+            }
+        }, {passive: true});
+
         cardEl.addEventListener('touchend', e => {
-            touchendX = e.changedTouches[0].screenX;
-            handleGesture();
+            if (!isDragging) return;
+            isDragging = false;
+            const deltaX = e.changedTouches[0].clientX - startX;
+            
+            cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; // Weiche Animation beim Loslassen
+            
+            if (deltaX > 100) {
+                // Ausreichend nach Rechts gewischt
+                cardEl.style.transform = `translate(1000px, 0) rotate(30deg)`;
+                cardEl.style.opacity = '0';
+                setTimeout(() => { rateCard('easy'); resetCardPosition(); }, 300);
+            } else if (deltaX < -100) {
+                // Ausreichend nach Links gewischt
+                cardEl.style.transform = `translate(-1000px, 0) rotate(-30deg)`;
+                cardEl.style.opacity = '0';
+                setTimeout(() => { rateCard('hard'); resetCardPosition(); }, 300);
+            } else {
+                // Nicht weit genug gewischt -> Karte schnappt zurück in die Mitte
+                resetCardPosition();
+            }
         }, {passive: true});
 
-        function handleGesture() {
-            // Nur wischen erlauben, wenn die Antwort bereits sichtbar ist
-            if (document.getElementById('answer-text').classList.contains('hidden')) return;
+        function resetCardPosition() {
+            cardEl.style.transform = '';
+            cardEl.style.opacity = '1';
+            hintEl.style.color = "#aaa";
+        }
 
-            if (touchendX < touchstartX - swipeThreshold) {
-                rateCard('hard'); // Nach links gewischt
+        // Klick auf die Buttons simuliert ein Wischen
+        function rateCardButton(rating) {
+            cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+            if (rating === 'easy') {
+                cardEl.style.transform = `translate(1000px, 0) rotate(30deg)`;
+            } else {
+                cardEl.style.transform = `translate(-1000px, 0) rotate(-30deg)`;
             }
-            if (touchendX > touchstartX + swipeThreshold) {
-                rateCard('easy'); // Nach rechts gewischt
-            }
+            cardEl.style.opacity = '0';
+            setTimeout(() => { rateCard(rating); resetCardPosition(); }, 300);
         }
         // ------------------------------------
 
@@ -148,10 +218,24 @@
         }
 
         function updateStats() {
-            const due = deck.filter(c => c.nextReview <= Date.now()).length;
-            document.getElementById('due-count').innerText = `Karten fällig: ${due}`;
-            const totalCountEl = document.getElementById('total-count');
-            if(totalCountEl) totalCountEl.innerText = deck.length;
+            let nNew = 0, nLearn = 0, nDue = 0;
+            const now = Date.now();
+            
+            deck.forEach(c => {
+                if (c.nextReview <= now) {
+                    if (c.reviews === 0) nNew++;          // Noch nie gesehen (Neu)
+                    else if (c.streak === 0) nLearn++;    // In der Lernphase / falsch beantwortet (Lernen)
+                    else nDue++;                          // Richtig beantwortet, heute wieder da (Fällig)
+                }
+            });
+            
+            document.getElementById('stat-new').innerText = `${nNew} Neu`;
+            document.getElementById('stat-learn').innerText = `${nLearn} Lernen`;
+            document.getElementById('stat-due').innerText = `${nDue} Fällig`;
+
+            if(document.getElementById('total-count')) {
+                document.getElementById('total-count').innerText = deck.length;
+            }
         }
 
         function nextCard() {
@@ -160,8 +244,7 @@
             const dueCards = deck.filter(card => card.nextReview <= now);
             
             if (dueCards.length === 0) {
-                // Keine Karten fällig
-                document.getElementById('card-container').classList.add('hidden');
+                document.getElementById('stack-container').classList.add('hidden');
                 document.getElementById('show-btn').classList.add('hidden');
                 document.getElementById('feedback-btns').classList.add('hidden');
                 document.getElementById('done-msg').classList.remove('hidden');
@@ -171,9 +254,9 @@
                 const randomDue = dueCards[Math.floor(Math.random() * dueCards.length)];
                 currentCardIndex = deck.indexOf(randomDue);
 
-                // Karte vorbereiten (verdeckt)
-                document.getElementById('card-container').classList.remove('hidden');
+                document.getElementById('stack-container').classList.remove('hidden');
                 document.getElementById('done-msg').classList.add('hidden');
+                
                 document.getElementById('question-text').innerText = deck[currentCardIndex].q;
                 document.getElementById('answer-text').innerText = deck[currentCardIndex].a;
                 document.getElementById('answer-text').classList.add('hidden');
@@ -182,6 +265,9 @@
                 
                 document.getElementById('show-btn').classList.remove('hidden');
                 document.getElementById('feedback-btns').classList.add('hidden');
+                
+                // Hintergrund-Karte ausblenden, wenn dies die absolut letzte Karte ist
+                document.getElementById('card-bg').style.display = dueCards.length > 1 ? 'block' : 'none';
             }
         }
 
@@ -189,7 +275,7 @@
             document.getElementById('answer-text').classList.remove('hidden');
             document.getElementById('show-btn').classList.add('hidden');
             document.getElementById('feedback-btns').classList.remove('hidden');
-            document.getElementById('swipe-hint').innerText = "👈 Schwer | Einfach 👉";
+            document.getElementById('swipe-hint').innerText = "Wischen zum Bewerten";
         }
 
         function rateCard(rating) {
@@ -198,22 +284,18 @@
             const now = Date.now();
             let card = deck[currentCardIndex];
             
-            // Sicherstellen, dass streak existiert
-            if (typeof card.streak === 'undefined') card.streak = 0;
+            card.reviews++; // Zähler für gesehene Karten erhöhen
 
             if (rating === 'easy') {
                 if (card.streak === 0) {
-                    // 1. Mal gewusst -> 10 Minuten
-                    card.nextReview = now + (10 * 60 * 1000);
+                    card.nextReview = now + (10 * 60 * 1000); // 10 Minuten
                 } else {
-                    // 2. Mal (oder öfter) gewusst -> 24 Stunden
-                    card.nextReview = now + (24 * 60 * 60 * 1000);
+                    card.nextReview = now + (24 * 60 * 60 * 1000); // 24 Stunden
                 }
-                card.streak++; // Streak erhöhen
+                card.streak++;
             } else {
-                // Nicht gewusst -> 1 Minute
-                card.nextReview = now + (1 * 60 * 1000);
-                card.streak = 0; // Streak zurücksetzen
+                card.nextReview = now + (1 * 60 * 1000); // 1 Minute
+                card.streak = 0;
             }
 
             save();
@@ -224,11 +306,12 @@
             const q = document.getElementById('new-q').value.trim();
             const a = document.getElementById('new-a').value.trim();
             if (q && a) {
-                deck.push({ q, a, nextReview: Date.now(), id: Date.now(), streak: 0 });
+                deck.push({ q, a, nextReview: Date.now(), id: Date.now(), streak: 0, reviews: 0 });
                 save();
                 document.getElementById('new-q').value = "";
                 document.getElementById('new-a').value = "";
                 renderList();
+                updateStats(); // Update direkt, damit "Neu" Counter anspringt
             }
         }
 
@@ -252,18 +335,12 @@
 
         function save() { localStorage.setItem('myAnkiDeck', JSON.stringify(deck)); }
 
-        // --- AUTO-REFRESH FIX ---
-        // Prüft alle 5 Sekunden, ob im Hintergrund Karten fällig geworden sind
-        // (Damit die "1 Minute"-Karten auch wirklich automatisch wieder auftauchen)
+        // Auto-Refresh für "1 Minute" Karten
         setInterval(() => {
-            // Nur neu laden, wenn wir auf dem Lernen-Tab sind und aktuell der "Fertig"-Screen zu sehen ist
             if (!document.getElementById('view-learn').classList.contains('hidden') && 
                 !document.getElementById('done-msg').classList.contains('hidden')) {
-                
                 const dueCards = deck.filter(card => card.nextReview <= Date.now());
-                if (dueCards.length > 0) {
-                    nextCard(); // Es ist wieder was fällig! Zurück an die Arbeit!
-                }
+                if (dueCards.length > 0) nextCard(); 
             }
         }, 5000); 
 
