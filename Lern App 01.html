@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meine Anki-App</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f4f4f9; }
+        .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 80%; text-align: center; min-height: 150px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 20px; }
+        .controls { display: flex; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+        .btn-show { background: #007bff; color: white; }
+        .btn-easy { background: #28a745; color: white; }
+        .btn-hard { background: #dc3545; color: white; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h2>Lern-Session</h2>
+    <div id="card-container" class="card">Lade Karten...</div>
+    
+    <button id="show-btn" class="btn-show" onclick="showAnswer()">Antwort zeigen</button>
+    
+    <div id="feedback-btns" class="controls hidden">
+        <button class="btn-hard" onclick="rateCard(1)">Schwer</button>
+        <button class="btn-easy" onclick="rateCard(5)">Einfach</button>
+    </div>
+
+    <script>
+        // Beispiel-Daten (später könntest du hier LocalStorage nutzen)
+        let deck = [
+            { q: "Was bedeutet 'Spaced Repetition'?", a: "Verteiltes Wiederholen über Zeitintervalle.", interval: 1 },
+            { q: "Wer entwickelte die Anki-Methode?", a: "Basierend auf dem SuperMemo-Algorithmus.", interval: 1 }
+        ];
+
+        let currentCardIndex = 0;
+
+        function displayCard() {
+            const card = deck[currentCardIndex];
+            document.getElementById('card-container').innerText = card.q;
+            document.getElementById('show-btn').classList.remove('hidden');
+            document.getElementById('feedback-btns').classList.add('hidden');
+        }
+
+        function showAnswer() {
+            document.getElementById('card-container').innerText = deck[currentCardIndex].a;
+            document.getElementById('show-btn').classList.add('hidden');
+            document.getElementById('feedback-btns').classList.remove('hidden');
+        }
+
+        function rateCard(score) {
+            // Hier würde ein echter Algorithmus das Intervall berechnen
+            alert("Karte bewertet mit: " + score + ". Nächste Karte kommt!");
+            currentCardIndex = (currentCardIndex + 1) % deck.length;
+            displayCard();
+        }
+
+        displayCard();
+    </script>
+</body>
+</html>
