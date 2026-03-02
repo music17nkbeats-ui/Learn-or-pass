@@ -2,61 +2,185 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Meine Anki-App</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f4f4f9; }
-        .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 80%; text-align: center; min-height: 150px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 20px; }
-        .controls { display: flex; gap: 10px; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; }
-        .btn-show { background: #007bff; color: white; }
-        .btn-easy { background: #28a745; color: white; }
-        .btn-hard { background: #dc3545; color: white; }
-        .hidden { display: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: #f4f4f9; color: #333; display: flex; flex-direction: column; height: 100vh; }
+        header { background: #007bff; color: white; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; }
+        
+        /* Navigation unten oder oben */
+        nav { display: flex; background: #0056b3; }
+        nav button { flex: 1; padding: 15px; background: none; border: none; color: white; font-size: 1rem; cursor: pointer; }
+        nav button.active { background: #003d82; font-weight: bold; border-bottom: 3px solid #ffc107; }
+        
+        main { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* Karteikarte */
+        .card { background: white; padding: 30px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; min-height: 200px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 20px; box-sizing: border-box;}
+        .question { font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; }
+        .answer { font-size: 1.3rem; color: #555; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+        
+        /* Buttons */
+        .controls { display: flex; gap: 10px; width: 100%; max-width: 400px; }
+        button.action-btn { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1rem; font-weight: bold; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+        .btn-show { background: #007bff; width: 100%; max-width: 400px;}
+        .btn-hard { background: #dc3545; }
+        .btn-easy { background: #28a745; }
+        
+        .hidden { display: none !important; }
+        
+        /* Formular zum Hinzufügen */
+        .form-group { width: 100%; max-width: 400px; margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { margin-bottom: 5px; font-weight: bold; }
+        input { padding: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        .btn-save { background: #28a745; width: 100%; max-width: 400px; margin-top: 10px; }
+        
+        .msg { text-align: center; font-size: 1.2rem; color: #666; padding: 20px; }
     </style>
 </head>
 <body>
 
-    <h2>Lern-Session</h2>
-    <div id="card-container" class="card">Lade Karten...</div>
+    <header>🧠 Vokabel-Trainer</header>
     
-    <button id="show-btn" class="btn-show" onclick="showAnswer()">Antwort zeigen</button>
-    
-    <div id="feedback-btns" class="controls hidden">
-        <button class="btn-hard" onclick="rateCard(1)">Schwer</button>
-        <button class="btn-easy" onclick="rateCard(5)">Einfach</button>
-    </div>
+    <nav>
+        <button id="nav-learn" class="active" onclick="switchView('learn')">Lernen</button>
+        <button id="nav-add" onclick="switchView('add')">+ Neu</button>
+    </nav>
+
+    <main id="view-learn">
+        <div id="card-container" class="card">
+            <div id="question-text" class="question">Lade Karten...</div>
+            <div id="answer-text" class="answer hidden"></div>
+        </div>
+        
+        <button id="show-btn" class="action-btn btn-show" onclick="showAnswer()">Antwort zeigen</button>
+        
+        <div id="feedback-btns" class="controls hidden">
+            <button class="action-btn btn-hard" onclick="rateCard('hard')">Schwer (< 1 Min)</button>
+            <button class="action-btn btn-easy" onclick="rateCard('easy')">Einfach (Morgen)</button>
+        </div>
+        
+        <div id="done-msg" class="msg hidden">
+            🎉 Super! Du hast alle fälligen Karten für jetzt gelernt. Komm später wieder!
+        </div>
+    </main>
+
+    <main id="view-add" class="hidden">
+        <div class="form-group">
+            <label for="new-q">Vorderseite (Frage):</label>
+            <input type="text" id="new-q" placeholder="z.B. der Hund">
+        </div>
+        <div class="form-group">
+            <label for="new-a">Rückseite (Antwort):</label>
+            <input type="text" id="new-a" placeholder="z.B. the dog">
+        </div>
+        <button class="action-btn btn-save" onclick="addCard()">Karte speichern</button>
+        <p id="add-success" style="color: green; text-align: center; display: none; margin-top: 15px; font-weight: bold;">✔️ Erfolgreich hinzugefügt!</p>
+    </main>
 
     <script>
-        // Beispiel-Daten (später könntest du hier LocalStorage nutzen)
-        let deck = [
-            { q: "Was bedeutet 'Spaced Repetition'?", a: "Verteiltes Wiederholen über Zeitintervalle.", interval: 1 },
-            { q: "Wer entwickelte die Anki-Methode?", a: "Basierend auf dem SuperMemo-Algorithmus.", interval: 1 }
+        // 1. Daten aus dem Handy-Speicher laden (oder 2 Beispielkarten nutzen)
+        let deck = JSON.parse(localStorage.getItem('myAnkiDeck')) || [
+            { q: "Was ist Spaced Repetition?", a: "Lernen mit wachsenden Zeitabständen", nextReview: Date.now() },
+            { q: "Wie heißt das englische Wort für 'Katze'?", a: "cat", nextReview: Date.now() }
         ];
 
-        let currentCardIndex = 0;
+        let currentCardIndex = -1;
 
-        function displayCard() {
-            const card = deck[currentCardIndex];
-            document.getElementById('card-container').innerText = card.q;
-            document.getElementById('show-btn').classList.remove('hidden');
-            document.getElementById('feedback-btns').classList.add('hidden');
+        // 2. Zwischen Lernen und Hinzufügen wechseln
+        function switchView(view) {
+            document.getElementById('view-learn').classList.add('hidden');
+            document.getElementById('view-add').classList.add('hidden');
+            document.getElementById('nav-learn').classList.remove('active');
+            document.getElementById('nav-add').classList.remove('active');
+
+            document.getElementById('view-' + view).classList.remove('hidden');
+            document.getElementById('nav-' + view).classList.add('active');
+
+            if (view === 'learn') {
+                nextCard(); // Lade frische Karte, wenn man auf "Lernen" tippt
+            }
+        }
+
+        // 3. Fällige Karte suchen und anzeigen
+        function nextCard() {
+            const now = Date.now();
+            
+            // Finde die erste Karte, deren Fälligkeitsdatum in der Vergangenheit liegt
+            currentCardIndex = deck.findIndex(card => card.nextReview <= now);
+
+            if (currentCardIndex === -1) {
+                // Keine Karten fällig!
+                document.getElementById('card-container').classList.add('hidden');
+                document.getElementById('show-btn').classList.add('hidden');
+                document.getElementById('feedback-btns').classList.add('hidden');
+                document.getElementById('done-msg').classList.remove('hidden');
+            } else {
+                // Karte anzeigen
+                document.getElementById('card-container').classList.remove('hidden');
+                document.getElementById('done-msg').classList.add('hidden');
+                
+                document.getElementById('question-text').innerText = deck[currentCardIndex].q;
+                document.getElementById('answer-text').innerText = deck[currentCardIndex].a;
+                document.getElementById('answer-text').classList.add('hidden'); // Antwort verstecken
+                
+                document.getElementById('show-btn').classList.remove('hidden');
+                document.getElementById('feedback-btns').classList.add('hidden');
+            }
         }
 
         function showAnswer() {
-            document.getElementById('card-container').innerText = deck[currentCardIndex].a;
+            document.getElementById('answer-text').classList.remove('hidden');
             document.getElementById('show-btn').classList.add('hidden');
             document.getElementById('feedback-btns').classList.remove('hidden');
         }
 
-        function rateCard(score) {
-            // Hier würde ein echter Algorithmus das Intervall berechnen
-            alert("Karte bewertet mit: " + score + ". Nächste Karte kommt!");
-            currentCardIndex = (currentCardIndex + 1) % deck.length;
-            displayCard();
+        // 4. Bewertung der Karte (Der Anki-Algorithmus)
+        function rateCard(rating) {
+            const now = Date.now();
+            
+            if (rating === 'easy') {
+                // 24 Stunden in die Zukunft verschieben (86.400.000 Millisekunden)
+                deck[currentCardIndex].nextReview = now + 86400000; 
+            } else {
+                // 1 Minute in die Zukunft verschieben (60.000 Millisekunden)
+                deck[currentCardIndex].nextReview = now + 60000;
+            }
+
+            // Neuen Stand im Handy speichern
+            localStorage.setItem('myAnkiDeck', JSON.stringify(deck));
+            
+            // Direkt die nächste Karte holen
+            nextCard();
         }
 
-        displayCard();
+        // 5. Neue Karte eintippen
+        function addCard() {
+            const qInput = document.getElementById('new-q');
+            const aInput = document.getElementById('new-a');
+            const q = qInput.value.trim();
+            const a = aInput.value.trim();
+
+            if (q !== "" && a !== "") {
+                // Karte ins Deck packen und fällig setzen (Date.now())
+                deck.push({ q: q, a: a, nextReview: Date.now() });
+                localStorage.setItem('myAnkiDeck', JSON.stringify(deck));
+                
+                // Formular leeren
+                qInput.value = "";
+                aInput.value = "";
+                
+                // Erfolgsmeldung kurz einblenden
+                const successMsg = document.getElementById('add-success');
+                successMsg.style.display = "block";
+                setTimeout(() => successMsg.style.display = "none", 2000); // Verschwindet nach 2 Sekunden
+            } else {
+                alert("Bitte fülle beide Felder aus!");
+            }
+        }
+
+        // App starten
+        nextCard();
     </script>
 </body>
 </html>
