@@ -6,31 +6,30 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>FlashLearn PWA</title>
-    <link rel="manifest" href="data:application/manifest+json,{'name':'FlashLearn','short_name':'Flash','start_url':'.','display':'standalone','background_color':'#f4f4f9','theme_color':'#007bff'}">
-    
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #333; --anki-new: #007bff; --anki-learn: #dc3545; --anki-due: #28a745; }
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f4f4f9; color: var(--dark); display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #333; --anki-new: #007bff; --anki-learn: #dc3545; --anki-due: #28a745; --bg: #f4f4f9; }
+        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--dark); display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
         
         header { background: var(--primary); color: white; padding: env(safe-area-inset-top) 15px 15px; text-align: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
         
         nav { display: flex; background: #0056b3; z-index: 10; }
-        nav button { flex: 1; padding: 12px; background: none; border: none; color: rgba(255,255,255,0.7); font-size: 0.9rem; transition: 0.3s; }
+        nav button { flex: 1; padding: 12px; background: none; border: none; color: rgba(255,255,255,0.7); font-size: 0.9rem; transition: 0.3s; cursor: pointer; }
         nav button.active { color: white; border-bottom: 3px solid #ffc107; font-weight: bold; }
         
-        main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; position: relative; }
+        main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; position: relative; width: 100%; box-sizing: border-box; }
         
+        /* Karten & Wischen */
         .card-stack { position: relative; width: 100%; max-width: 400px; display: flex; justify-content: center; align-items: center; min-height: 350px; margin-top: 20px; }
         .card-bg { position: absolute; width: 95%; height: 95%; background: white; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); top: 15px; z-index: 1; }
         .card { background: white; padding: 30px 20px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; height: 100%; text-align: center; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; cursor: pointer; z-index: 2; position: absolute; will-change: transform; }
         
         .question { font-size: 1.8rem; font-weight: 700; color: #222; }
-        .answer { font-size: 1.5rem; color: #666; margin-top: 25px; border-top: 2px dashed #eee; padding-top: 25px; animation: fadeIn 0.3s; }
+        .answer { font-size: 1.5rem; color: #666; margin-top: 25px; border-top: 2px dashed #eee; padding-top: 25px; }
         .swipe-hint { position: absolute; bottom: 15px; left: 0; width: 100%; font-size: 0.85rem; color: #aaa; text-align: center; font-weight: bold; transition: color 0.2s; pointer-events: none; }
 
         .controls { display: flex; gap: 12px; width: 100%; max-width: 400px; margin-top: 30px; z-index: 10; }
-        .action-btn { flex: 1; padding: 18px; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; color: white; cursor: pointer; }
-        .btn-show { background: var(--primary); width: 100%; max-width: 400px; margin-top: 30px; z-index: 10; }
+        .action-btn { flex: 1; padding: 15px; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; color: white; cursor: pointer; }
+        .btn-primary { background: var(--primary); }
         .btn-hard { background: var(--danger); }
         .btn-easy { background: var(--success); }
         
@@ -40,16 +39,25 @@
         .stat-due { color: var(--anki-due); }
 
         .hidden { display: none !important; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .card-list { width: 100%; max-width: 400px; margin-top: 20px; }
-        .list-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; border: 1px solid #eee; }
-        .btn-del { color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer; }
+        /* Stapel & Listen */
+        .full-width { width: 100%; max-width: 400px; margin: 0 auto; }
+        .deck-item { background: white; padding: 15px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--primary); }
+        .deck-info { flex: 1; cursor: pointer; }
+        .deck-title { font-weight: bold; font-size: 1.1rem; }
+        .deck-stats { font-size: 0.8rem; color: #666; margin-top: 5px; }
+        .deck-actions button { background: #eee; border: none; padding: 8px 12px; border-radius: 6px; margin-left: 5px; cursor: pointer; font-size: 0.8rem; }
         
-        /* Neuer Countdown-Style (Riesig und auffällig) */
-        .countdown-container { text-align: center; margin-top: 30px; width: 100%; max-width: 300px; }
-        .timer-box { background: var(--primary); color: white; padding: 20px; border-radius: 15px; font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3); }
+        input, select, textarea { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 1rem; font-family: inherit;}
+        textarea { resize: vertical; min-height: 100px; }
+        
+        .countdown-container { text-align: center; margin-top: 30px; }
+        .timer-box { background: var(--primary); color: white; padding: 20px; border-radius: 15px; font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3); display: inline-block;}
         .timer-time { font-size: 3rem; display: block; margin-top: 10px; font-variant-numeric: tabular-nums; }
+        
+        /* Modal für Stapel bearbeiten */
+        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .modal { background: white; padding: 20px; border-radius: 15px; width: 100%; max-width: 350px; }
     </style>
 </head>
 <body>
@@ -57,15 +65,26 @@
     <header>🧠 FlashLearn</header>
     
     <nav>
-        <button id="nav-learn" class="active" onclick="switchView('learn')">Lernen</button>
+        <button id="nav-decks" class="active" onclick="switchView('decks')">Stapel</button>
+        <button id="nav-learn" onclick="switchView('learn')">Lernen</button>
         <button id="nav-add" onclick="switchView('add')">Karten</button>
     </nav>
 
-    <main id="view-learn">
+    <main id="view-decks">
+        <div class="full-width">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="new-deck-name" placeholder="Neuer Stapel Name">
+                <button class="action-btn btn-primary" style="flex: 0 0 auto;" onclick="createDeck()">+ Neu</button>
+            </div>
+            <div id="deck-list"></div>
+        </div>
+    </main>
+
+    <main id="view-learn" class="hidden">
+        <div id="active-deck-title" style="font-weight: bold; color: #666; margin-bottom: 10px;">Bitte wähle einen Stapel</div>
         
-        <div id="stack-container" class="card-stack">
+        <div id="stack-container" class="card-stack hidden">
             <div id="card-bg" class="card-bg"></div> 
-            
             <div id="card-container" class="card">
                 <div id="question-text" class="question">...</div>
                 <div id="answer-text" class="answer hidden"></div>
@@ -73,7 +92,7 @@
             </div>
         </div>
         
-        <button id="show-btn" class="action-btn btn-show" onclick="showAnswer()">Antwort zeigen</button>
+        <button id="show-btn" class="action-btn btn-primary hidden" style="width:100%; max-width:400px; margin-top:20px;" onclick="showAnswer()">Antwort zeigen</button>
         
         <div id="feedback-btns" class="controls hidden">
             <button class="action-btn btn-hard" onclick="rateCardButton('hard')">👈 Schwer</button>
@@ -82,11 +101,9 @@
         
         <div id="done-msg" class="msg hidden countdown-container">
             <h2 style="font-size: 4rem; margin: 0 0 10px 0;">☕</h2>
-            <h3 style="margin: 0 0 5px 0; color: #333;">Pause!</h3>
-            <p style="color: #666; margin-bottom: 25px; font-size: 0.9rem;">Du musst auf die nächsten Karten warten.</p>
-            
-            <div class="timer-box">
-                Weiter in:
+            <h3 style="margin: 0 0 5px 0; color: #333;">Stapel erledigt!</h3>
+            <div class="timer-box" style="margin-top:20px;">
+                Nächste in:
                 <span id="next-timer" class="timer-time">00:00</span>
             </div>
         </div>
@@ -99,173 +116,264 @@
     </main>
 
     <main id="view-add" class="hidden">
-        <div style="width: 100%; max-width: 400px;">
-            <h3>Neue Karte</h3>
-            <input type="text" id="new-q" placeholder="Vorderseite" style="width:100%; padding:15px; margin-bottom:10px; border-radius:12px; border:1px solid #ccc; box-sizing: border-box; font-size: 1rem;">
-            <input type="text" id="new-a" placeholder="Rückseite" style="width:100%; padding:15px; margin-bottom:10px; border-radius:12px; border:1px solid #ccc; box-sizing: border-box; font-size: 1rem;">
-            <button class="action-btn btn-easy" style="width: 100%; cursor: pointer;" onclick="addCard()">Hinzufügen</button>
+        <div class="full-width">
+            <h3>Einzelne Karte</h3>
+            <select id="card-deck-select"></select>
+            <input type="text" id="new-q" placeholder="Vorderseite">
+            <input type="text" id="new-a" placeholder="Rückseite">
+            <button class="action-btn btn-easy" style="width: 100%; margin-bottom: 30px;" onclick="addCard()">Hinzufügen</button>
             
-            <hr style="margin: 25px 0; border: 0; border-top: 1px solid #ddd;">
+            <hr style="border: 0; border-top: 1px solid #ddd; margin-bottom: 20px;">
             
-            <h3>Deine Karten (<span id="total-count">0</span>)</h3>
-            <div id="full-list" class="card-list"></div>
+            <h3>Schnell-Import</h3>
+            <p style="font-size: 0.8rem; color: #666; margin-top:0;">Format: <code>Vorderseite;Rückseite</code> (pro Zeile eine Karte)</p>
+            <select id="import-deck-select"></select>
+            <textarea id="import-text" placeholder="Hund;dog&#10;Katze;cat"></textarea>
+            <button class="action-btn btn-primary" style="width: 100%;" onclick="importCards()">Importieren</button>
         </div>
     </main>
 
-    <script>
-        let deck = JSON.parse(localStorage.getItem('myAnkiDeck')) || [];
-        deck.forEach(c => {
-            if (typeof c.reviews === 'undefined') c.reviews = 0;
-            if (typeof c.streak === 'undefined') c.streak = 0;
-        });
+    <div id="edit-deck-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>Stapel bearbeiten</h3>
+            <input type="hidden" id="edit-deck-id">
+            <label style="font-size: 0.8rem; font-weight:bold;">Name</label>
+            <input type="text" id="edit-deck-name">
+            <label style="font-size: 0.8rem; font-weight:bold;">Verschieben nach (Überstapel)</label>
+            <select id="edit-deck-parent"></select>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="action-btn btn-primary" onclick="saveDeckEdit()">Speichern</button>
+                <button class="action-btn" style="background:#888;" onclick="closeModal()">Abbrechen</button>
+            </div>
+            <button class="action-btn btn-hard" style="width: 100%; margin-top: 15px;" onclick="deleteDeck()">Stapel Löschen</button>
+        </div>
+    </div>
 
+    <script>
+        // --- DATENSTRUKTUR & MIGRATION ---
+        let decks = JSON.parse(localStorage.getItem('flashDecks'));
+        let cards = JSON.parse(localStorage.getItem('flashCards'));
+
+        // Migration von alten Versionen
+        if (!decks || !cards) {
+            decks = [{ id: 'root', name: 'Standard', parentId: null }];
+            let oldDeck = JSON.parse(localStorage.getItem('myAnkiDeck')) || [];
+            cards = oldDeck.map(c => ({
+                id: c.id || Date.now() + Math.random(),
+                deckId: 'root',
+                q: c.q, a: c.a,
+                nextReview: c.nextReview || Date.now(),
+                streak: c.streak || 0,
+                reviews: c.reviews || 0
+            }));
+            saveData();
+        }
+
+        let activeDeckId = null; 
+        let currentCardList = []; // Die fälligen Karten des aktuell gewählten Stapels + Unterstapel
         let currentCardIndex = -1;
 
-        // --- GESTENSTEUERUNG MIT PHYSIK ---
-        const cardEl = document.getElementById('card-container');
-        const hintEl = document.getElementById('swipe-hint');
-        let isDragging = false;
-        let startX = 0, startY = 0;
-
-        cardEl.addEventListener('click', () => {
-            if (!isDragging && document.getElementById('answer-text').classList.contains('hidden')) showAnswer();
-        });
-
-        cardEl.addEventListener('touchstart', e => {
-            if (document.getElementById('answer-text').classList.contains('hidden')) return; 
-            isDragging = true;
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-            cardEl.style.transition = 'none'; 
-        }, {passive: true});
-
-        cardEl.addEventListener('touchmove', e => {
-            if (!isDragging) return;
-            const deltaX = e.touches[0].clientX - startX;
-            const deltaY = e.touches[0].clientY - startY;
-            cardEl.style.transform = `translate(${deltaX}px, ${deltaY}px) rotate(${deltaX * 0.05}deg)`;
-            
-            if (deltaX > 60) { hintEl.innerText = "Einfach 👉"; hintEl.style.color = "var(--success)"; } 
-            else if (deltaX < -60) { hintEl.innerText = "👈 Schwer"; hintEl.style.color = "var(--danger)"; } 
-            else { hintEl.innerText = "Wischen zum Bewerten"; hintEl.style.color = "#aaa"; }
-        }, {passive: true});
-
-        cardEl.addEventListener('touchend', e => {
-            if (!isDragging) return;
-            isDragging = false;
-            const deltaX = e.changedTouches[0].clientX - startX;
-            cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; 
-            
-            if (deltaX > 100) {
-                cardEl.style.transform = `translate(1000px, 0) rotate(30deg)`; cardEl.style.opacity = '0';
-                setTimeout(() => { rateCard('easy'); resetCardPosition(); }, 300);
-            } else if (deltaX < -100) {
-                cardEl.style.transform = `translate(-1000px, 0) rotate(-30deg)`; cardEl.style.opacity = '0';
-                setTimeout(() => { rateCard('hard'); resetCardPosition(); }, 300);
-            } else { resetCardPosition(); }
-        }, {passive: true});
-
-        function resetCardPosition() {
-            cardEl.style.transform = ''; cardEl.style.opacity = '1'; hintEl.style.color = "#aaa";
+        function saveData() {
+            localStorage.setItem('flashDecks', JSON.stringify(decks));
+            localStorage.setItem('flashCards', JSON.stringify(cards));
         }
 
-        function rateCardButton(rating) {
-            cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-            cardEl.style.transform = rating === 'easy' ? `translate(1000px, 0) rotate(30deg)` : `translate(-1000px, 0) rotate(-30deg)`;
-            cardEl.style.opacity = '0';
-            setTimeout(() => { rateCard(rating); resetCardPosition(); }, 300);
+        // --- HILFSFUNKTIONEN FÜR UNTERSTAPEL ---
+        // Holt alle IDs eines Stapels UND seiner Unterstapel (rekursiv)
+        function getDeckAndSubDeckIds(parentId) {
+            let ids = [parentId];
+            const children = decks.filter(d => d.parentId === parentId);
+            for (let child of children) {
+                ids = ids.concat(getDeckAndSubDeckIds(child.id));
+            }
+            return ids;
         }
-        // ------------------------------------
 
+        // --- ANSICHTEN WECHSELN ---
         function switchView(view) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
             document.getElementById('view-' + view).classList.remove('hidden');
             document.getElementById('nav-' + view).classList.add('active');
-            if (view === 'learn') nextCard();
-            if (view === 'add') renderList();
+            
+            if (view === 'decks') renderDecks();
+            if (view === 'learn') {
+                if(!activeDeckId && decks.length > 0) activeDeckId = decks[0].id;
+                startLearning(activeDeckId);
+            }
+            if (view === 'add') populateSelects();
         }
 
-        // KORREKTE ANKI STATISTIK-LOGIK
+        // --- STAPEL VERWALTUNG (Decks) ---
+        function renderDecks() {
+            const list = document.getElementById('deck-list');
+            list.innerHTML = '';
+            
+            // Rekursive Funktion zum Zeichnen des Baums
+            function drawNode(parentId, level) {
+                const children = decks.filter(d => d.parentId === parentId);
+                children.forEach(deck => {
+                    const deckIds = getDeckAndSubDeckIds(deck.id);
+                    const deckCards = cards.filter(c => deckIds.includes(c.deckId));
+                    const dueCount = deckCards.filter(c => c.nextReview <= Date.now()).length;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'deck-item';
+                    div.style.marginLeft = `${level * 20}px`;
+                    div.innerHTML = `
+                        <div class="deck-info" onclick="startLearning('${deck.id}')">
+                            <div class="deck-title">${deck.name}</div>
+                            <div class="deck-stats">${deckCards.length} Karten gesamt | <span style="color:var(--danger); font-weight:bold;">${dueCount} fällig</span></div>
+                        </div>
+                        <div class="deck-actions">
+                            <button onclick="openEditModal('${deck.id}')">Bearbeiten</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                    drawNode(deck.id, level + 1); // Unterstapel zeichnen
+                });
+            }
+            drawNode(null, 0); // Start bei Root (ohne Parent)
+        }
+
+        function createDeck() {
+            const name = document.getElementById('new-deck-name').value.trim();
+            if (name) {
+                decks.push({ id: 'd_' + Date.now(), name: name, parentId: null });
+                saveData();
+                document.getElementById('new-deck-name').value = '';
+                renderDecks();
+            }
+        }
+
+        function openEditModal(id) {
+            const deck = decks.find(d => d.id === id);
+            document.getElementById('edit-deck-id').value = deck.id;
+            document.getElementById('edit-deck-name').value = deck.name;
+            
+            const parentSelect = document.getElementById('edit-deck-parent');
+            parentSelect.innerHTML = '<option value="null">-- Kein Überstapel (Ganz oben) --</option>';
+            
+            decks.forEach(d => {
+                // Man darf einen Stapel nicht in sich selbst oder seine eigenen Kinder verschieben
+                if (d.id !== deck.id && !getDeckAndSubDeckIds(deck.id).includes(d.id)) {
+                    const sel = (d.id === deck.parentId) ? 'selected' : '';
+                    parentSelect.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
+                }
+            });
+            
+            document.getElementById('edit-deck-modal').classList.remove('hidden');
+        }
+
+        function saveDeckEdit() {
+            const id = document.getElementById('edit-deck-id').value;
+            const name = document.getElementById('edit-deck-name').value.trim();
+            const parentId = document.getElementById('edit-deck-parent').value;
+            
+            const deck = decks.find(d => d.id === id);
+            if (name) deck.name = name;
+            deck.parentId = parentId === "null" ? null : parentId;
+            
+            saveData();
+            closeModal();
+            renderDecks();
+        }
+
+        function deleteDeck() {
+            const id = document.getElementById('edit-deck-id').value;
+            if(confirm("Möchtest du diesen Stapel inkl. ALLER Unterstapel und Karten wirklich löschen?")) {
+                const idsToDelete = getDeckAndSubDeckIds(id);
+                decks = decks.filter(d => !idsToDelete.includes(d.id));
+                cards = cards.filter(c => !idsToDelete.includes(c.deckId));
+                saveData();
+                if(activeDeckId === id) activeDeckId = null;
+                closeModal();
+                renderDecks();
+            }
+        }
+
+        function closeModal() { document.getElementById('edit-deck-modal').classList.add('hidden'); }
+
+        // --- LERN LOGIK ---
+        function startLearning(deckId) {
+            activeDeckId = deckId;
+            const deck = decks.find(d => d.id === deckId);
+            document.getElementById('active-deck-title').innerText = deck ? `Lerne: ${deck.name}` : '';
+            switchView('learn');
+            nextCard();
+        }
+
         function updateStats() {
+            if(!activeDeckId) return;
+            const validDeckIds = getDeckAndSubDeckIds(activeDeckId);
+            const contextCards = cards.filter(c => validDeckIds.includes(c.deckId));
+            
             let nNew = 0, nLearn = 0, nDue = 0;
             const now = Date.now();
             
-            deck.forEach(c => {
-                if (c.reviews === 0) {
-                    // Karte wurde noch nie angesehen (Blau)
-                    nNew++; 
-                } else if (c.streak < 2) {
-                    // Karte ist angesehen, aber noch nicht auf morgen verschoben (Rot)
-                    // Sie bleibt hier drin, auch wenn du gerade 10 Minuten warten musst!
-                    nLearn++; 
-                } else if (c.nextReview <= now) {
-                    // Karte ist alt (Streak 2+) und ihre 24h+ Zeit ist abgelaufen (Grün)
-                    nDue++; 
-                }
+            contextCards.forEach(c => {
+                if (c.reviews === 0) nNew++; 
+                else if (c.streak < 2) nLearn++; 
+                else if (c.nextReview <= now) nDue++; 
             });
             
             document.getElementById('stat-new').innerText = `${nNew} Neu`;
             document.getElementById('stat-learn').innerText = `${nLearn} Lernen`;
             document.getElementById('stat-due').innerText = `${nDue} Fällig`;
-            if(document.getElementById('total-count')) document.getElementById('total-count').innerText = deck.length;
-        }
-
-        // RIESEN-COUNTDOWN LOGIK
-        function getNextCardTimeStr() {
-            const futureCards = deck.filter(c => c.nextReview > Date.now());
-            if (futureCards.length === 0) return "Morgen"; // Keine Karten mehr im ganzen Deck
-            
-            const nextTime = Math.min(...futureCards.map(c => c.nextReview));
-            const diff = nextTime - Date.now();
-            
-            if (diff <= 0) return "00:00";
-            
-            const totalSeconds = Math.floor(diff / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-
-            if (hours > 0) {
-                // Wenn es über eine Stunde dauert, Text-Anzeige
-                return `${hours}h ${minutes}m`;
-            } else {
-                // Wenn es unter einer Stunde ist, digitale Stopuhr (z.B. 09:59)
-                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            }
+            return contextCards;
         }
 
         function nextCard() {
-            updateStats();
-            const now = Date.now();
-            const dueCards = deck.filter(card => card.nextReview <= now);
+            const contextCards = updateStats();
+            if(!contextCards) return;
             
-            if (dueCards.length === 0) {
-                // KEINE KARTEN FÄLLIG -> TIMER ZEIGEN
+            const now = Date.now();
+            currentCardList = contextCards.filter(card => card.nextReview <= now);
+            
+            if (currentCardList.length === 0) {
                 document.getElementById('stack-container').classList.add('hidden');
                 document.getElementById('show-btn').classList.add('hidden');
                 document.getElementById('feedback-btns').classList.add('hidden');
-                
                 document.getElementById('done-msg').classList.remove('hidden');
-                document.getElementById('next-timer').innerText = getNextCardTimeStr();
+                updateTimerText(contextCards);
                 currentCardIndex = -1;
             } else {
-                // KARTEN FÄLLIG -> KARTE ZEIGEN
-                const randomDue = dueCards[Math.floor(Math.random() * dueCards.length)];
-                currentCardIndex = deck.indexOf(randomDue);
+                const randomDue = currentCardList[Math.floor(Math.random() * currentCardList.length)];
+                currentCardIndex = cards.indexOf(randomDue); // Index in der globalen Liste!
 
                 document.getElementById('stack-container').classList.remove('hidden');
                 document.getElementById('done-msg').classList.add('hidden');
                 
-                document.getElementById('question-text').innerText = deck[currentCardIndex].q;
-                document.getElementById('answer-text').innerText = deck[currentCardIndex].a;
+                document.getElementById('question-text').innerText = cards[currentCardIndex].q;
+                document.getElementById('answer-text').innerText = cards[currentCardIndex].a;
                 document.getElementById('answer-text').classList.add('hidden');
                 document.getElementById('swipe-hint').innerText = "Tippen zum Umdrehen";
                 document.getElementById('show-btn').classList.remove('hidden');
                 document.getElementById('feedback-btns').classList.add('hidden');
-                
-                document.getElementById('card-bg').style.display = dueCards.length > 1 ? 'block' : 'none';
+                document.getElementById('card-bg').style.display = currentCardList.length > 1 ? 'block' : 'none';
             }
+        }
+
+        function updateTimerText(contextCards) {
+            const futureCards = contextCards.filter(c => c.nextReview > Date.now());
+            const timerEl = document.getElementById('next-timer');
+            if (futureCards.length === 0) {
+                timerEl.innerText = "Morgen";
+                return;
+            }
+            
+            const nextTime = Math.min(...futureCards.map(c => c.nextReview));
+            const diff = nextTime - Date.now();
+            if (diff <= 0) { timerEl.innerText = "00:00"; return; }
+            
+            const totalSeconds = Math.floor(diff / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const mins = Math.floor((totalSeconds % 3600) / 60);
+            const secs = totalSeconds % 60;
+
+            if (hours > 0) timerEl.innerText = `${hours}h ${mins}m`;
+            else timerEl.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
         function showAnswer() {
@@ -278,77 +386,111 @@
         function rateCard(rating) {
             if (currentCardIndex === -1) return;
             const now = Date.now();
-            let card = deck[currentCardIndex];
+            let card = cards[currentCardIndex];
             
-            card.reviews++; // Karte wurde angesehen! (Rutscht damit von Neu -> Lernen)
-
+            card.reviews++; 
             if (rating === 'easy') {
-                if (card.streak === 0) {
-                    card.nextReview = now + (10 * 60 * 1000); // 1. Mal richtig: +10 Minuten warten
-                } else {
-                    card.nextReview = now + (24 * 60 * 60 * 1000); // 2. Mal richtig: +24 Stunden
-                }
-                card.streak++; // Streak geht hoch
+                if (card.streak === 0) card.nextReview = now + (10 * 60 * 1000); 
+                else card.nextReview = now + (24 * 60 * 60 * 1000);
+                card.streak++;
             } else {
-                card.nextReview = now + (1 * 60 * 1000); // Falsch: +1 Minute warten
-                card.streak = 0; // Streak fällt zurück auf 0
+                card.nextReview = now + (1 * 60 * 1000); 
+                card.streak = 0;
             }
-
-            save();
+            saveData();
             nextCard();
+        }
+
+        // --- GESTENSTEUERUNG (unverändert) ---
+        const cardEl = document.getElementById('card-container');
+        const hintEl = document.getElementById('swipe-hint');
+        let isDragging = false, startX = 0, startY = 0;
+
+        cardEl.addEventListener('click', () => { if (!isDragging && document.getElementById('answer-text').classList.contains('hidden')) showAnswer(); });
+        cardEl.addEventListener('touchstart', e => { if (document.getElementById('answer-text').classList.contains('hidden')) return; isDragging = true; startX = e.touches[0].clientX; startY = e.touches[0].clientY; cardEl.style.transition = 'none'; }, {passive: true});
+        cardEl.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            const deltaX = e.touches[0].clientX - startX;
+            cardEl.style.transform = `translate(${deltaX}px, ${e.touches[0].clientY - startY}px) rotate(${deltaX * 0.05}deg)`;
+            if (deltaX > 60) { hintEl.innerText = "Einfach 👉"; hintEl.style.color = "var(--success)"; } else if (deltaX < -60) { hintEl.innerText = "👈 Schwer"; hintEl.style.color = "var(--danger)"; } else { hintEl.innerText = "Wischen zum Bewerten"; hintEl.style.color = "#aaa"; }
+        }, {passive: true});
+        cardEl.addEventListener('touchend', e => {
+            if (!isDragging) return;
+            isDragging = false;
+            const deltaX = e.changedTouches[0].clientX - startX;
+            cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; 
+            if (deltaX > 100) { cardEl.style.transform = `translate(1000px, 0) rotate(30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard('easy'); resetCardPosition(); }, 300); } 
+            else if (deltaX < -100) { cardEl.style.transform = `translate(-1000px, 0) rotate(-30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard('hard'); resetCardPosition(); }, 300); } 
+            else { resetCardPosition(); }
+        }, {passive: true});
+        function resetCardPosition() { cardEl.style.transform = ''; cardEl.style.opacity = '1'; hintEl.style.color = "#aaa"; }
+        function rateCardButton(rating) { cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; cardEl.style.transform = rating === 'easy' ? `translate(1000px, 0) rotate(30deg)` : `translate(-1000px, 0) rotate(-30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard(rating); resetCardPosition(); }, 300); }
+
+        // --- KARTEN HINZUFÜGEN & IMPORT ---
+        function populateSelects() {
+            const html = decks.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            document.getElementById('card-deck-select').innerHTML = html;
+            document.getElementById('import-deck-select').innerHTML = html;
         }
 
         function addCard() {
             const q = document.getElementById('new-q').value.trim();
             const a = document.getElementById('new-a').value.trim();
+            const dId = document.getElementById('card-deck-select').value;
             if (q && a) {
-                deck.push({ q, a, nextReview: Date.now(), id: Date.now(), streak: 0, reviews: 0 });
-                save();
-                document.getElementById('new-q').value = "";
-                document.getElementById('new-a').value = "";
-                renderList();
-                updateStats(); 
+                cards.push({ id: Date.now(), deckId: dId, q, a, nextReview: Date.now(), streak: 0, reviews: 0 });
+                saveData();
+                document.getElementById('new-q').value = ""; document.getElementById('new-a').value = "";
+                alert("Karte hinzugefügt!");
             }
         }
 
-        function deleteCard(id) {
-            deck = deck.filter(c => c.id !== id);
-            save();
-            renderList();
+        function importCards() {
+            const text = document.getElementById('import-text').value;
+            const targetDeck = document.getElementById('import-deck-select').value;
+            if(!text.trim()) return;
+            
+            const lines = text.split('\n');
+            let count = 0;
+            
+            lines.forEach(line => {
+                const parts = line.split(';');
+                if (parts.length >= 2) {
+                    cards.push({
+                        id: Date.now() + Math.random(),
+                        deckId: targetDeck,
+                        q: parts[0].trim(),
+                        a: parts[1].trim(),
+                        nextReview: Date.now(),
+                        streak: 0,
+                        reviews: 0
+                    });
+                    count++;
+                }
+            });
+            
+            saveData();
+            document.getElementById('import-text').value = '';
+            alert(`${count} Karten erfolgreich importiert!`);
         }
 
-        function renderList() {
-            const listCont = document.getElementById('full-list');
-            if(!listCont) return;
-            listCont.innerHTML = deck.map(c => `
-                <div class="list-item">
-                    <span>${c.q.substring(0, 20)}${c.q.length > 20 ? '...' : ''}</span>
-                    <button class="btn-del" onclick="deleteCard(${c.id})">Löschen</button>
-                </div>
-            `).join('');
-            updateStats();
-        }
-
-        function save() { localStorage.setItem('myAnkiDeck', JSON.stringify(deck)); }
-
-        // LIVE-TIMER: Läuft jede Sekunde
+        // Live-Timer check
         setInterval(() => {
             if (!document.getElementById('view-learn').classList.contains('hidden')) {
-                const dueCards = deck.filter(card => card.nextReview <= Date.now());
+                const validDeckIds = getDeckAndSubDeckIds(activeDeckId);
+                const contextCards = cards.filter(c => validDeckIds.includes(c.deckId));
+                const dueCards = contextCards.filter(c => c.nextReview <= Date.now());
                 
                 if (dueCards.length > 0 && document.getElementById('stack-container').classList.contains('hidden')) {
-                    // Timer ist gerade auf 0 gesprungen! Lade die Karte!
                     nextCard(); 
                 } else if (dueCards.length === 0) {
-                    // Aktualisiere die Stoppuhr live auf dem Bildschirm
-                    const timerEl = document.getElementById('next-timer');
-                    if (timerEl) timerEl.innerText = getNextCardTimeStr();
+                    updateTimerText(contextCards);
                 }
             }
         }, 1000); 
 
-        // Start
-        nextCard();
+        // Start (lade Decks)
+        renderDecks();
     </script>
 </body>
 </html>
