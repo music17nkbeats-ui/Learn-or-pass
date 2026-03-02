@@ -46,8 +46,10 @@
         .list-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; border: 1px solid #eee; }
         .btn-del { color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer; }
         
-        /* Countdown Style */
-        .timer-box { background: #e9ecef; padding: 10px 20px; border-radius: 20px; display: inline-block; margin-top: 15px; color: #555; font-weight: bold; }
+        /* Neuer Countdown-Style (Riesig und auffällig) */
+        .countdown-container { text-align: center; margin-top: 30px; width: 100%; max-width: 300px; }
+        .timer-box { background: var(--primary); color: white; padding: 20px; border-radius: 15px; font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3); }
+        .timer-time { font-size: 3rem; display: block; margin-top: 10px; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
@@ -78,10 +80,15 @@
             <button class="action-btn btn-easy" onclick="rateCardButton('easy')">Einfach 👉</button>
         </div>
         
-        <div id="done-msg" class="msg hidden" style="text-align: center; margin-top: 60px;">
-            <h2 style="font-size: 3rem; margin: 0;">🎉</h2>
-            <p style="font-size: 1.2rem; color: #555; margin-bottom: 5px;">Alles erledigt!</p>
-            <div class="timer-box">Nächste Karte <span id="next-timer">...</span></div>
+        <div id="done-msg" class="msg hidden countdown-container">
+            <h2 style="font-size: 4rem; margin: 0 0 10px 0;">☕</h2>
+            <h3 style="margin: 0 0 5px 0; color: #333;">Pause!</h3>
+            <p style="color: #666; margin-bottom: 25px; font-size: 0.9rem;">Du musst auf die nächsten Karten warten.</p>
+            
+            <div class="timer-box">
+                Weiter in:
+                <span id="next-timer" class="timer-time">00:00</span>
+            </div>
         </div>
 
         <div class="anki-stats" id="anki-stats-bar">
@@ -179,17 +186,22 @@
             if (view === 'add') renderList();
         }
 
+        // KORREKTE ANKI STATISTIK-LOGIK
         function updateStats() {
             let nNew = 0, nLearn = 0, nDue = 0;
             const now = Date.now();
             
             deck.forEach(c => {
                 if (c.reviews === 0) {
-                    nNew++; // Noch nie gelernt
+                    // Karte wurde noch nie angesehen (Blau)
+                    nNew++; 
                 } else if (c.streak < 2) {
-                    nLearn++; // In der Kurzzeit-Schleife (1 Min / 10 Min)
+                    // Karte ist angesehen, aber noch nicht auf morgen verschoben (Rot)
+                    // Sie bleibt hier drin, auch wenn du gerade 10 Minuten warten musst!
+                    nLearn++; 
                 } else if (c.nextReview <= now) {
-                    nDue++; // Alte Karten, die heute fällig sind
+                    // Karte ist alt (Streak 2+) und ihre 24h+ Zeit ist abgelaufen (Grün)
+                    nDue++; 
                 }
             });
             
@@ -199,22 +211,28 @@
             if(document.getElementById('total-count')) document.getElementById('total-count').innerText = deck.length;
         }
 
+        // RIESEN-COUNTDOWN LOGIK
         function getNextCardTimeStr() {
-            if (deck.length === 0) return "füge Karten hinzu";
-            const nextTime = Math.min(...deck.map(c => c.nextReview));
+            const futureCards = deck.filter(c => c.nextReview > Date.now());
+            if (futureCards.length === 0) return "Morgen"; // Keine Karten mehr im ganzen Deck
+            
+            const nextTime = Math.min(...futureCards.map(c => c.nextReview));
             const diff = nextTime - Date.now();
             
-            if (diff <= 0) return "gleich!";
+            if (diff <= 0) return "00:00";
             
-            const mins = Math.floor(diff / 60000);
-            if (mins < 1) return `in ${Math.ceil(diff / 1000)} Sekunden`;
-            if (mins < 60) return `in ${mins} Minute${mins > 1 ? 'n' : ''}`;
-            
-            const hours = Math.floor(mins / 60);
-            if (hours < 24) return `in ${hours} Stunde${hours > 1 ? 'n' : ''}`;
-            
-            const days = Math.floor(hours / 24);
-            return `in ${days} Tag${days > 1 ? 'en' : ''}`;
+            const totalSeconds = Math.floor(diff / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+                // Wenn es über eine Stunde dauert, Text-Anzeige
+                return `${hours}h ${minutes}m`;
+            } else {
+                // Wenn es unter einer Stunde ist, digitale Stopuhr (z.B. 09:59)
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
         }
 
         function nextCard() {
@@ -223,13 +241,16 @@
             const dueCards = deck.filter(card => card.nextReview <= now);
             
             if (dueCards.length === 0) {
+                // KEINE KARTEN FÄLLIG -> TIMER ZEIGEN
                 document.getElementById('stack-container').classList.add('hidden');
                 document.getElementById('show-btn').classList.add('hidden');
                 document.getElementById('feedback-btns').classList.add('hidden');
+                
                 document.getElementById('done-msg').classList.remove('hidden');
                 document.getElementById('next-timer').innerText = getNextCardTimeStr();
                 currentCardIndex = -1;
             } else {
+                // KARTEN FÄLLIG -> KARTE ZEIGEN
                 const randomDue = dueCards[Math.floor(Math.random() * dueCards.length)];
                 currentCardIndex = deck.indexOf(randomDue);
 
@@ -259,18 +280,18 @@
             const now = Date.now();
             let card = deck[currentCardIndex];
             
-            card.reviews++; 
+            card.reviews++; // Karte wurde angesehen! (Rutscht damit von Neu -> Lernen)
 
             if (rating === 'easy') {
                 if (card.streak === 0) {
-                    card.nextReview = now + (10 * 60 * 1000); // 1. Mal richtig: 10 Minuten
+                    card.nextReview = now + (10 * 60 * 1000); // 1. Mal richtig: +10 Minuten warten
                 } else {
-                    card.nextReview = now + (24 * 60 * 60 * 1000); // 2. Mal richtig: 24 Stunden
+                    card.nextReview = now + (24 * 60 * 60 * 1000); // 2. Mal richtig: +24 Stunden
                 }
-                card.streak++;
+                card.streak++; // Streak geht hoch
             } else {
-                card.nextReview = now + (1 * 60 * 1000); // Falsch: 1 Minute
-                card.streak = 0;
+                card.nextReview = now + (1 * 60 * 1000); // Falsch: +1 Minute warten
+                card.streak = 0; // Streak fällt zurück auf 0
             }
 
             save();
@@ -310,15 +331,16 @@
 
         function save() { localStorage.setItem('myAnkiDeck', JSON.stringify(deck)); }
 
-        // Live-Timer & Auto-Refresh Check (jede Sekunde)
+        // LIVE-TIMER: Läuft jede Sekunde
         setInterval(() => {
             if (!document.getElementById('view-learn').classList.contains('hidden')) {
                 const dueCards = deck.filter(card => card.nextReview <= Date.now());
                 
                 if (dueCards.length > 0 && document.getElementById('stack-container').classList.contains('hidden')) {
-                    nextCard(); // Neue Karte ist fällig geworden -> laden!
+                    // Timer ist gerade auf 0 gesprungen! Lade die Karte!
+                    nextCard(); 
                 } else if (dueCards.length === 0) {
-                    // Aktualisiere den Countdown-Text live
+                    // Aktualisiere die Stoppuhr live auf dem Bildschirm
                     const timerEl = document.getElementById('next-timer');
                     if (timerEl) timerEl.innerText = getNextCardTimeStr();
                 }
