@@ -10,7 +10,7 @@
     
     <style>
         :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #333; }
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f4f4f9; color: var(--dark); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #f4f4f9; color: var(--dark); display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
         
         header { background: var(--primary); color: white; padding: env(safe-area-inset-top) 15px 15px; text-align: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
@@ -20,12 +20,18 @@
         
         main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
         
-        .card { background: white; padding: 30px 20px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); width: 100%; max-width: 400px; text-align: center; min-height: 250px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; transition: transform 0.2s; }
-        .question { font-size: 1.6rem; font-weight: 700; color: #222; }
-        .answer { font-size: 1.4rem; color: #666; margin-top: 20px; border-top: 2px dashed #eee; padding-top: 20px; animation: fadeIn 0.3s; }
+        /* Karten-Styling für Swipes */
+        .card { background: white; padding: 30px 20px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); width: 100%; max-width: 400px; text-align: center; min-height: 350px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; position: relative; }
+        .card:active { transform: scale(0.98); }
         
+        .question { font-size: 1.8rem; font-weight: 700; color: #222; }
+        .answer { font-size: 1.5rem; color: #666; margin-top: 25px; border-top: 2px dashed #eee; padding-top: 25px; animation: fadeIn 0.3s; }
+        
+        /* Swipe Hint Text */
+        .swipe-hint { position: absolute; bottom: 15px; left: 0; width: 100%; font-size: 0.8rem; color: #aaa; text-align: center; pointer-events: none; }
+
         .controls { display: flex; gap: 12px; width: 100%; max-width: 400px; margin-top: 20px; }
-        .action-btn { flex: 1; padding: 18px; border: none; border-radius: 12px; cursor: pointer; font-size: 1rem; font-weight: bold; color: white; active { transform: scale(0.95); } }
+        .action-btn { flex: 1; padding: 18px; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; color: white; }
         .btn-show { background: var(--primary); width: 100%; max-width: 400px; margin-top: 20px; }
         .btn-hard { background: var(--danger); }
         .btn-easy { background: var(--success); }
@@ -36,11 +42,9 @@
         /* Listen-Ansicht */
         .card-list { width: 100%; max-width: 400px; margin-top: 20px; }
         .list-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
-        .btn-del { color: var(--danger); background: none; border: none; font-weight: bold; }
+        .btn-del { color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer;}
         
-        .stats { font-size: 0.8rem; margin-top: 10px; color: #888; }
-        .import-export { margin-top: 30px; display: flex; gap: 5px; }
-        .btn-small { padding: 5px 10px; font-size: 0.7rem; background: #ddd; border-radius: 4px; border: none; }
+        .stats { font-size: 0.9rem; margin-bottom: 15px; color: #888; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -54,49 +58,85 @@
 
     <main id="view-learn">
         <div class="stats" id="due-count">Karten fällig: 0</div>
+        
         <div id="card-container" class="card">
             <div id="question-text" class="question">...</div>
             <div id="answer-text" class="answer hidden"></div>
+            <div id="swipe-hint" class="swipe-hint">Tippen zum Umdrehen</div>
         </div>
         
         <button id="show-btn" class="action-btn btn-show" onclick="showAnswer()">Antwort zeigen</button>
         
         <div id="feedback-btns" class="controls hidden">
-            <button class="action-btn btn-hard" onclick="rateCard('hard')">Schwer</button>
-            <button class="action-btn btn-easy" onclick="rateCard('easy')">Einfach</button>
+            <button class="action-btn btn-hard" onclick="rateCard('hard')">👈 Schwer</button>
+            <button class="action-btn btn-easy" onclick="rateCard('easy')">Einfach 👉</button>
         </div>
         
-        <div id="done-msg" class="msg hidden">
-            <h2 style="font-size: 3rem;">🎉</h2>
-            <p>Alles erledigt! Pause verdient.</p>
+        <div id="done-msg" class="msg hidden" style="text-align: center; margin-top: 40px;">
+            <h2 style="font-size: 3rem; margin: 0;">🎉</h2>
+            <p style="font-size: 1.2rem; color: #555;">Alles erledigt!<br>Warte auf fällige Karten...</p>
         </div>
     </main>
 
     <main id="view-add" class="hidden">
         <div style="width: 100%; max-width: 400px;">
             <h3>Neue Karte</h3>
-            <input type="text" id="new-q" placeholder="Vorderseite" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc; box-sizing: border-box;">
-            <input type="text" id="new-a" placeholder="Rückseite" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc; box-sizing: border-box;">
-            <button class="action-btn btn-easy" style="width: 100%;" onclick="addCard()">Hinzufügen</button>
+            <input type="text" id="new-q" placeholder="Vorderseite" style="width:100%; padding:15px; margin-bottom:10px; border-radius:12px; border:1px solid #ccc; box-sizing: border-box; font-size: 1rem;">
+            <input type="text" id="new-a" placeholder="Rückseite" style="width:100%; padding:15px; margin-bottom:10px; border-radius:12px; border:1px solid #ccc; box-sizing: border-box; font-size: 1rem;">
+            <button class="action-btn btn-easy" style="width: 100%; cursor: pointer;" onclick="addCard()">Hinzufügen</button>
             
             <hr style="margin: 25px 0; border: 0; border-top: 1px solid #ddd;">
             
             <h3>Deine Karten (<span id="total-count">0</span>)</h3>
             <div id="full-list" class="card-list"></div>
-
-            <div class="import-export">
-                <button class="btn-small" onclick="exportData()">Backup (JSON)</button>
-                <button class="btn-small" onclick="importData()">Import</button>
-            </div>
         </div>
     </main>
 
     <script>
+        // Lade Deck oder erstelle Standard-Karten
         let deck = JSON.parse(localStorage.getItem('myAnkiDeck')) || [
-            { q: "Herzlich Willkommen!", a: "Wische nach links zum Starten", nextReview: Date.now(), id: Date.now() }
+            { q: "Wische nach Links 👈", a: "Wenn du es nicht wusstest (1 Min)", nextReview: Date.now(), id: 1, streak: 0 },
+            { q: "Wische nach Rechts 👉", a: "Wenn du es wusstest (10 Min / 24h)", nextReview: Date.now(), id: 2, streak: 0 }
         ];
 
         let currentCardIndex = -1;
+
+        // --- GESTENSTEUERUNG (SWIPE & TAP) ---
+        let touchstartX = 0;
+        let touchendX = 0;
+        const swipeThreshold = 50; // Mindest-Pixel für einen Swipe
+        const cardEl = document.getElementById('card-container');
+
+        // Karte antippen = Umdrehen
+        cardEl.addEventListener('click', () => {
+            if (document.getElementById('answer-text').classList.contains('hidden')) {
+                showAnswer();
+            }
+        });
+
+        // Wischen starten
+        cardEl.addEventListener('touchstart', e => {
+            touchstartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        // Wischen beenden
+        cardEl.addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            handleGesture();
+        }, {passive: true});
+
+        function handleGesture() {
+            // Nur wischen erlauben, wenn die Antwort bereits sichtbar ist
+            if (document.getElementById('answer-text').classList.contains('hidden')) return;
+
+            if (touchendX < touchstartX - swipeThreshold) {
+                rateCard('hard'); // Nach links gewischt
+            }
+            if (touchendX > touchstartX + swipeThreshold) {
+                rateCard('easy'); // Nach rechts gewischt
+            }
+        }
+        // ------------------------------------
 
         function switchView(view) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
@@ -110,7 +150,8 @@
         function updateStats() {
             const due = deck.filter(c => c.nextReview <= Date.now()).length;
             document.getElementById('due-count').innerText = `Karten fällig: ${due}`;
-            document.getElementById('total-count').innerText = deck.length;
+            const totalCountEl = document.getElementById('total-count');
+            if(totalCountEl) totalCountEl.innerText = deck.length;
         }
 
         function nextCard() {
@@ -119,20 +160,26 @@
             const dueCards = deck.filter(card => card.nextReview <= now);
             
             if (dueCards.length === 0) {
+                // Keine Karten fällig
                 document.getElementById('card-container').classList.add('hidden');
                 document.getElementById('show-btn').classList.add('hidden');
                 document.getElementById('feedback-btns').classList.add('hidden');
                 document.getElementById('done-msg').classList.remove('hidden');
+                currentCardIndex = -1;
             } else {
-                // Zufällige Karte aus den fälligen wählen (verhindert feststecken)
+                // Wähle eine zufällige fällige Karte
                 const randomDue = dueCards[Math.floor(Math.random() * dueCards.length)];
                 currentCardIndex = deck.indexOf(randomDue);
 
+                // Karte vorbereiten (verdeckt)
                 document.getElementById('card-container').classList.remove('hidden');
                 document.getElementById('done-msg').classList.add('hidden');
                 document.getElementById('question-text').innerText = deck[currentCardIndex].q;
                 document.getElementById('answer-text').innerText = deck[currentCardIndex].a;
                 document.getElementById('answer-text').classList.add('hidden');
+                
+                document.getElementById('swipe-hint').innerText = "Tippen zum Umdrehen";
+                
                 document.getElementById('show-btn').classList.remove('hidden');
                 document.getElementById('feedback-btns').classList.add('hidden');
             }
@@ -142,12 +189,33 @@
             document.getElementById('answer-text').classList.remove('hidden');
             document.getElementById('show-btn').classList.add('hidden');
             document.getElementById('feedback-btns').classList.remove('hidden');
+            document.getElementById('swipe-hint').innerText = "👈 Schwer | Einfach 👉";
         }
 
         function rateCard(rating) {
+            if (currentCardIndex === -1) return;
+            
             const now = Date.now();
-            // Simpler Algorithmus: Easy verdoppelt Intervalle (hier vereinfacht auf Fixwerte)
-            deck[currentCardIndex].nextReview = (rating === 'easy') ? now + 86400000 : now + 60000;
+            let card = deck[currentCardIndex];
+            
+            // Sicherstellen, dass streak existiert
+            if (typeof card.streak === 'undefined') card.streak = 0;
+
+            if (rating === 'easy') {
+                if (card.streak === 0) {
+                    // 1. Mal gewusst -> 10 Minuten
+                    card.nextReview = now + (10 * 60 * 1000);
+                } else {
+                    // 2. Mal (oder öfter) gewusst -> 24 Stunden
+                    card.nextReview = now + (24 * 60 * 60 * 1000);
+                }
+                card.streak++; // Streak erhöhen
+            } else {
+                // Nicht gewusst -> 1 Minute
+                card.nextReview = now + (1 * 60 * 1000);
+                card.streak = 0; // Streak zurücksetzen
+            }
+
             save();
             nextCard();
         }
@@ -156,7 +224,7 @@
             const q = document.getElementById('new-q').value.trim();
             const a = document.getElementById('new-a').value.trim();
             if (q && a) {
-                deck.push({ q, a, nextReview: Date.now(), id: Date.now() });
+                deck.push({ q, a, nextReview: Date.now(), id: Date.now(), streak: 0 });
                 save();
                 document.getElementById('new-q').value = "";
                 document.getElementById('new-a').value = "";
@@ -172,9 +240,10 @@
 
         function renderList() {
             const listCont = document.getElementById('full-list');
+            if(!listCont) return;
             listCont.innerHTML = deck.map(c => `
                 <div class="list-item">
-                    <span>${c.q.substring(0, 20)}...</span>
+                    <span>${c.q.substring(0, 20)}${c.q.length > 20 ? '...' : ''}</span>
                     <button class="btn-del" onclick="deleteCard(${c.id})">Löschen</button>
                 </div>
             `).join('');
@@ -183,25 +252,22 @@
 
         function save() { localStorage.setItem('myAnkiDeck', JSON.stringify(deck)); }
 
-        function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(deck));
-            const dlAnchor = document.createElement('a');
-            dlAnchor.setAttribute("href", dataStr);
-            dlAnchor.setAttribute("download", "flashlearn_backup.json");
-            dlAnchor.click();
-        }
-
-        function importData() {
-            const json = prompt("Füge den Inhalt deiner Backup-Datei hier ein:");
-            if (json) {
-                try {
-                    deck = JSON.parse(json);
-                    save();
-                    location.reload();
-                } catch(e) { alert("Fehler beim Import!"); }
+        // --- AUTO-REFRESH FIX ---
+        // Prüft alle 5 Sekunden, ob im Hintergrund Karten fällig geworden sind
+        // (Damit die "1 Minute"-Karten auch wirklich automatisch wieder auftauchen)
+        setInterval(() => {
+            // Nur neu laden, wenn wir auf dem Lernen-Tab sind und aktuell der "Fertig"-Screen zu sehen ist
+            if (!document.getElementById('view-learn').classList.contains('hidden') && 
+                !document.getElementById('done-msg').classList.contains('hidden')) {
+                
+                const dueCards = deck.filter(card => card.nextReview <= Date.now());
+                if (dueCards.length > 0) {
+                    nextCard(); // Es ist wieder was fällig! Zurück an die Arbeit!
+                }
             }
-        }
+        }, 5000); 
 
+        // Start
         nextCard();
     </script>
 </body>
