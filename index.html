@@ -7,14 +7,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>FlashLearn PWA</title>
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #333; --anki-new: #007bff; --anki-learn: #dc3545; --anki-due: #28a745; --bg: #f4f4f9; }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #333; --anki-new: #007bff; --anki-learn: #dc3545; --anki-due: #28a745; --bg: #f4f4f9; --gold: #ffc107; }
         body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--dark); display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
         
-        header { background: var(--primary); color: white; padding: env(safe-area-inset-top) 15px 15px; text-align: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
+        header { background: var(--primary); color: white; padding: env(safe-area-inset-top) 15px 15px; text-align: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; position: relative; }
+        .coin-display { position: absolute; right: 15px; top: max(env(safe-area-inset-top), 15px); font-size: 1.1rem; font-weight: bold; color: var(--gold); text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
         
         nav { display: flex; background: #0056b3; z-index: 10; }
         nav button { flex: 1; padding: 12px; background: none; border: none; color: rgba(255,255,255,0.7); font-size: 0.9rem; transition: 0.3s; cursor: pointer; }
-        nav button.active { color: white; border-bottom: 3px solid #ffc107; font-weight: bold; }
+        nav button.active { color: white; border-bottom: 3px solid var(--gold); font-weight: bold; }
         
         main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; position: relative; width: 100%; box-sizing: border-box; }
         
@@ -55,14 +56,29 @@
         .timer-box { background: var(--primary); color: white; padding: 20px; border-radius: 15px; font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3); display: inline-block;}
         .timer-time { font-size: 3rem; display: block; margin-top: 10px; font-variant-numeric: tabular-nums; }
         
-        /* Modal für Stapel bearbeiten */
-        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .modal { background: white; padding: 20px; border-radius: 15px; width: 100%; max-width: 350px; }
+        /* Modals */
+        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .modal { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        
+        /* Coin Animation */
+        .float-coin { position: absolute; font-size: 2rem; font-weight: bold; color: var(--gold); text-shadow: 0 2px 5px rgba(0,0,0,0.2); pointer-events: none; z-index: 50; animation: floatUp 0.8s ease-out forwards; }
+        
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+            100% { opacity: 0; transform: translate(-50%, -150px) scale(1.5); }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
 
-    <header>🧠 FlashLearn</header>
+    <header>
+        🧠 FlashLearn
+        <div class="coin-display">🪙 <span id="coin-count">0</span></div>
+    </header>
     
     <nav>
         <button id="nav-decks" class="active" onclick="switchView('decks')">Stapel</button>
@@ -126,7 +142,7 @@
             <hr style="border: 0; border-top: 1px solid #ddd; margin-bottom: 20px;">
             
             <h3>Schnell-Import</h3>
-            <p style="font-size: 0.8rem; color: #666; margin-top:0;">Format: <code>Vorderseite;Rückseite</code> (pro Zeile eine Karte)</p>
+            <p style="font-size: 0.8rem; color: #666; margin-top:0;">Format: <code>Vorderseite;Rückseite</code></p>
             <select id="import-deck-select"></select>
             <textarea id="import-text" placeholder="Hund;dog&#10;Katze;cat"></textarea>
             <button class="action-btn btn-primary" style="width: 100%;" onclick="importCards()">Importieren</button>
@@ -139,39 +155,98 @@
             <input type="hidden" id="edit-deck-id">
             <label style="font-size: 0.8rem; font-weight:bold;">Name</label>
             <input type="text" id="edit-deck-name">
-            <label style="font-size: 0.8rem; font-weight:bold;">Verschieben nach (Überstapel)</label>
+            <label style="font-size: 0.8rem; font-weight:bold;">Verschieben nach</label>
             <select id="edit-deck-parent"></select>
             
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="action-btn btn-primary" onclick="saveDeckEdit()">Speichern</button>
-                <button class="action-btn" style="background:#888;" onclick="closeModal()">Abbrechen</button>
+                <button class="action-btn" style="background:#888;" onclick="closeModal('edit-deck-modal')">Abbrechen</button>
             </div>
             <button class="action-btn btn-hard" style="width: 100%; margin-top: 15px;" onclick="deleteDeck()">Stapel Löschen</button>
         </div>
     </div>
 
-    <script>
-        // --- DATENSTRUKTUR & MIGRATION ---
-        let decks = JSON.parse(localStorage.getItem('flashDecks'));
-        let cards = JSON.parse(localStorage.getItem('flashCards'));
+    <div id="level-up-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h1 style="font-size: 4rem; margin:0;">🎉</h1>
+            <h2 id="level-title" style="color: var(--primary); margin: 10px 0;">Neuer Rang!</h2>
+            <p id="level-desc" style="color: #666; font-size: 1.1rem;">Du hast X Coins gesammelt.</p>
+            <button class="action-btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="closeModal('level-up-modal')">Weiter so!</button>
+        </div>
+    </div>
 
-        // Migration von alten Versionen
-        if (!decks || !cards) {
-            decks = [{ id: 'root', name: 'Standard', parentId: null }];
-            let oldDeck = JSON.parse(localStorage.getItem('myAnkiDeck')) || [];
-            cards = oldDeck.map(c => ({
-                id: c.id || Date.now() + Math.random(),
-                deckId: 'root',
-                q: c.q, a: c.a,
-                nextReview: c.nextReview || Date.now(),
-                streak: c.streak || 0,
-                reviews: c.reviews || 0
-            }));
-            saveData();
+    <script>
+        // --- GAMIFICATION LOGIK ---
+        let coins = parseInt(localStorage.getItem('flashCoins')) || 0;
+        document.getElementById('coin-count').innerText = coins;
+
+        const milestones = {
+            10: "Anfänger 🥉",
+            50: "Fleißiges Bienchen 🐝",
+            100: "Lern-Maschine 🤖",
+            250: "Vokabel-Profi 🥈",
+            500: "Meisterdenker 🥇",
+            1000: "Gehirn-Legende 👑"
+        };
+
+        // Synthetisiert einen entspannten Ding-Sound ohne externe Dateien
+        let audioCtx;
+        function playDingSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = 'sine'; // Weicher Sound
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1); 
+            
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); // Fade in
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3); // Fade out
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.3);
         }
 
+        function triggerCoinReward() {
+            // Sound spielen
+            playDingSound();
+
+            // Coins erhöhen
+            coins++;
+            localStorage.setItem('flashCoins', coins);
+            document.getElementById('coin-count').innerText = coins;
+
+            // Visuelles "+1" erzeugen
+            const floatingText = document.createElement('div');
+            floatingText.className = 'float-coin';
+            floatingText.innerText = '+1 🪙';
+            // Startposition genau in der Mitte der Karte
+            floatingText.style.top = '40%';
+            floatingText.style.left = '50%';
+            document.getElementById('view-learn').appendChild(floatingText);
+            
+            // Element nach Animation entfernen
+            setTimeout(() => floatingText.remove(), 800);
+
+            // Meilenstein Check
+            if (milestones[coins]) {
+                document.getElementById('level-title').innerText = milestones[coins];
+                document.getElementById('level-desc').innerText = `Krass! Du hast ${coins} Karten gelernt!`;
+                document.getElementById('level-up-modal').classList.remove('hidden');
+            }
+        }
+
+        // --- DATENSTRUKTUR ---
+        let decks = JSON.parse(localStorage.getItem('flashDecks')) || [{ id: 'root', name: 'Standard', parentId: null }];
+        let cards = JSON.parse(localStorage.getItem('flashCards')) || [];
         let activeDeckId = null; 
-        let currentCardList = []; // Die fälligen Karten des aktuell gewählten Stapels + Unterstapel
+        let currentCardList = []; 
         let currentCardIndex = -1;
 
         function saveData() {
@@ -179,18 +254,13 @@
             localStorage.setItem('flashCards', JSON.stringify(cards));
         }
 
-        // --- HILFSFUNKTIONEN FÜR UNTERSTAPEL ---
-        // Holt alle IDs eines Stapels UND seiner Unterstapel (rekursiv)
         function getDeckAndSubDeckIds(parentId) {
             let ids = [parentId];
             const children = decks.filter(d => d.parentId === parentId);
-            for (let child of children) {
-                ids = ids.concat(getDeckAndSubDeckIds(child.id));
-            }
+            for (let child of children) ids = ids.concat(getDeckAndSubDeckIds(child.id));
             return ids;
         }
 
-        // --- ANSICHTEN WECHSELN ---
         function switchView(view) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -200,23 +270,19 @@
             if (view === 'decks') renderDecks();
             if (view === 'learn') {
                 if(!activeDeckId && decks.length > 0) activeDeckId = decks[0].id;
-                startLearning(activeDeckId);
+                if(activeDeckId) startLearning(activeDeckId);
             }
             if (view === 'add') populateSelects();
         }
 
-        // --- STAPEL VERWALTUNG (Decks) ---
+        // --- STAPEL ---
         function renderDecks() {
             const list = document.getElementById('deck-list');
             list.innerHTML = '';
-            
-            // Rekursive Funktion zum Zeichnen des Baums
             function drawNode(parentId, level) {
-                const children = decks.filter(d => d.parentId === parentId);
-                children.forEach(deck => {
+                decks.filter(d => d.parentId === parentId).forEach(deck => {
                     const deckIds = getDeckAndSubDeckIds(deck.id);
-                    const deckCards = cards.filter(c => deckIds.includes(c.deckId));
-                    const dueCount = deckCards.filter(c => c.nextReview <= Date.now()).length;
+                    const dueCount = cards.filter(c => deckIds.includes(c.deckId) && c.nextReview <= Date.now()).length;
                     
                     const div = document.createElement('div');
                     div.className = 'deck-item';
@@ -224,78 +290,59 @@
                     div.innerHTML = `
                         <div class="deck-info" onclick="startLearning('${deck.id}')">
                             <div class="deck-title">${deck.name}</div>
-                            <div class="deck-stats">${deckCards.length} Karten gesamt | <span style="color:var(--danger); font-weight:bold;">${dueCount} fällig</span></div>
+                            <div class="deck-stats">${cards.filter(c => deckIds.includes(c.deckId)).length} Karten | <span style="color:var(--danger); font-weight:bold;">${dueCount} fällig</span></div>
                         </div>
-                        <div class="deck-actions">
-                            <button onclick="openEditModal('${deck.id}')">Bearbeiten</button>
-                        </div>
+                        <div class="deck-actions"><button onclick="openEditModal('${deck.id}')">✏️</button></div>
                     `;
                     list.appendChild(div);
-                    drawNode(deck.id, level + 1); // Unterstapel zeichnen
+                    drawNode(deck.id, level + 1); 
                 });
             }
-            drawNode(null, 0); // Start bei Root (ohne Parent)
+            drawNode(null, 0); 
         }
 
         function createDeck() {
             const name = document.getElementById('new-deck-name').value.trim();
-            if (name) {
-                decks.push({ id: 'd_' + Date.now(), name: name, parentId: null });
-                saveData();
-                document.getElementById('new-deck-name').value = '';
-                renderDecks();
-            }
+            if (name) { decks.push({ id: 'd_' + Date.now(), name: name, parentId: null }); saveData(); document.getElementById('new-deck-name').value = ''; renderDecks(); }
         }
 
         function openEditModal(id) {
             const deck = decks.find(d => d.id === id);
             document.getElementById('edit-deck-id').value = deck.id;
             document.getElementById('edit-deck-name').value = deck.name;
-            
             const parentSelect = document.getElementById('edit-deck-parent');
-            parentSelect.innerHTML = '<option value="null">-- Kein Überstapel (Ganz oben) --</option>';
-            
+            parentSelect.innerHTML = '<option value="null">-- Kein Überstapel --</option>';
             decks.forEach(d => {
-                // Man darf einen Stapel nicht in sich selbst oder seine eigenen Kinder verschieben
                 if (d.id !== deck.id && !getDeckAndSubDeckIds(deck.id).includes(d.id)) {
-                    const sel = (d.id === deck.parentId) ? 'selected' : '';
-                    parentSelect.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
+                    parentSelect.innerHTML += `<option value="${d.id}" ${d.id === deck.parentId ? 'selected' : ''}>${d.name}</option>`;
                 }
             });
-            
             document.getElementById('edit-deck-modal').classList.remove('hidden');
         }
 
         function saveDeckEdit() {
             const id = document.getElementById('edit-deck-id').value;
-            const name = document.getElementById('edit-deck-name').value.trim();
-            const parentId = document.getElementById('edit-deck-parent').value;
-            
             const deck = decks.find(d => d.id === id);
-            if (name) deck.name = name;
-            deck.parentId = parentId === "null" ? null : parentId;
-            
-            saveData();
-            closeModal();
-            renderDecks();
+            deck.name = document.getElementById('edit-deck-name').value.trim() || deck.name;
+            const pId = document.getElementById('edit-deck-parent').value;
+            deck.parentId = pId === "null" ? null : pId;
+            saveData(); closeModal('edit-deck-modal'); renderDecks();
         }
 
         function deleteDeck() {
             const id = document.getElementById('edit-deck-id').value;
-            if(confirm("Möchtest du diesen Stapel inkl. ALLER Unterstapel und Karten wirklich löschen?")) {
+            if(confirm("Diesen Stapel inkl. ALLER Unterstapel und Karten löschen?")) {
                 const idsToDelete = getDeckAndSubDeckIds(id);
                 decks = decks.filter(d => !idsToDelete.includes(d.id));
                 cards = cards.filter(c => !idsToDelete.includes(c.deckId));
-                saveData();
-                if(activeDeckId === id) activeDeckId = null;
-                closeModal();
-                renderDecks();
+                saveData(); if(activeDeckId === id) activeDeckId = null;
+                closeModal('edit-deck-modal'); renderDecks();
             }
         }
 
-        function closeModal() { document.getElementById('edit-deck-modal').classList.add('hidden'); }
+        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
-        // --- LERN LOGIK ---
+        // --- LERNEN ---
         function startLearning(deckId) {
             activeDeckId = deckId;
             const deck = decks.find(d => d.id === deckId);
@@ -306,21 +353,11 @@
 
         function updateStats() {
             if(!activeDeckId) return;
-            const validDeckIds = getDeckAndSubDeckIds(activeDeckId);
-            const contextCards = cards.filter(c => validDeckIds.includes(c.deckId));
-            
+            const contextCards = cards.filter(c => getDeckAndSubDeckIds(activeDeckId).includes(c.deckId));
             let nNew = 0, nLearn = 0, nDue = 0;
             const now = Date.now();
-            
-            contextCards.forEach(c => {
-                if (c.reviews === 0) nNew++; 
-                else if (c.streak < 2) nLearn++; 
-                else if (c.nextReview <= now) nDue++; 
-            });
-            
-            document.getElementById('stat-new').innerText = `${nNew} Neu`;
-            document.getElementById('stat-learn').innerText = `${nLearn} Lernen`;
-            document.getElementById('stat-due').innerText = `${nDue} Fällig`;
+            contextCards.forEach(c => { if (c.reviews === 0) nNew++; else if (c.streak < 2) nLearn++; else if (c.nextReview <= now) nDue++; });
+            document.getElementById('stat-new').innerText = `${nNew} Neu`; document.getElementById('stat-learn').innerText = `${nLearn} Lernen`; document.getElementById('stat-due').innerText = `${nDue} Fällig`;
             return contextCards;
         }
 
@@ -328,9 +365,7 @@
             const contextCards = updateStats();
             if(!contextCards) return;
             
-            const now = Date.now();
-            currentCardList = contextCards.filter(card => card.nextReview <= now);
-            
+            currentCardList = contextCards.filter(c => c.nextReview <= Date.now());
             if (currentCardList.length === 0) {
                 document.getElementById('stack-container').classList.add('hidden');
                 document.getElementById('show-btn').classList.add('hidden');
@@ -339,12 +374,9 @@
                 updateTimerText(contextCards);
                 currentCardIndex = -1;
             } else {
-                const randomDue = currentCardList[Math.floor(Math.random() * currentCardList.length)];
-                currentCardIndex = cards.indexOf(randomDue); // Index in der globalen Liste!
-
+                currentCardIndex = cards.indexOf(currentCardList[Math.floor(Math.random() * currentCardList.length)]);
                 document.getElementById('stack-container').classList.remove('hidden');
                 document.getElementById('done-msg').classList.add('hidden');
-                
                 document.getElementById('question-text').innerText = cards[currentCardIndex].q;
                 document.getElementById('answer-text').innerText = cards[currentCardIndex].a;
                 document.getElementById('answer-text').classList.add('hidden');
@@ -358,25 +390,18 @@
         function updateTimerText(contextCards) {
             const futureCards = contextCards.filter(c => c.nextReview > Date.now());
             const timerEl = document.getElementById('next-timer');
-            if (futureCards.length === 0) {
-                timerEl.innerText = "Morgen";
-                return;
-            }
-            
-            const nextTime = Math.min(...futureCards.map(c => c.nextReview));
-            const diff = nextTime - Date.now();
+            if (futureCards.length === 0) { timerEl.innerText = "Morgen"; return; }
+            const diff = Math.min(...futureCards.map(c => c.nextReview)) - Date.now();
             if (diff <= 0) { timerEl.innerText = "00:00"; return; }
-            
-            const totalSeconds = Math.floor(diff / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
-            const mins = Math.floor((totalSeconds % 3600) / 60);
-            const secs = totalSeconds % 60;
-
-            if (hours > 0) timerEl.innerText = `${hours}h ${mins}m`;
-            else timerEl.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            const ts = Math.floor(diff / 1000), h = Math.floor(ts / 3600), m = Math.floor((ts % 3600) / 60), s = ts % 60;
+            timerEl.innerText = h > 0 ? `${h}h ${m}m` : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
         function showAnswer() {
+            // Um den Browser AudioContext zu aktivieren, muss hier einmal interagiert werden!
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
             document.getElementById('answer-text').classList.remove('hidden');
             document.getElementById('show-btn').classList.add('hidden');
             document.getElementById('feedback-btns').classList.remove('hidden');
@@ -385,25 +410,25 @@
 
         function rateCard(rating) {
             if (currentCardIndex === -1) return;
+            
+            triggerCoinReward(); // BELOHNUNG AUSLÖSEN!
+
             const now = Date.now();
             let card = cards[currentCardIndex];
-            
             card.reviews++; 
             if (rating === 'easy') {
-                if (card.streak === 0) card.nextReview = now + (10 * 60 * 1000); 
-                else card.nextReview = now + (24 * 60 * 60 * 1000);
+                card.nextReview = now + (card.streak === 0 ? 10 * 60000 : 24 * 3600000);
                 card.streak++;
             } else {
-                card.nextReview = now + (1 * 60 * 1000); 
+                card.nextReview = now + 60000; 
                 card.streak = 0;
             }
             saveData();
             nextCard();
         }
 
-        // --- GESTENSTEUERUNG (unverändert) ---
-        const cardEl = document.getElementById('card-container');
-        const hintEl = document.getElementById('swipe-hint');
+        // --- GESTENSTEUERUNG ---
+        const cardEl = document.getElementById('card-container'), hintEl = document.getElementById('swipe-hint');
         let isDragging = false, startX = 0, startY = 0;
 
         cardEl.addEventListener('click', () => { if (!isDragging && document.getElementById('answer-text').classList.contains('hidden')) showAnswer(); });
@@ -426,70 +451,37 @@
         function resetCardPosition() { cardEl.style.transform = ''; cardEl.style.opacity = '1'; hintEl.style.color = "#aaa"; }
         function rateCardButton(rating) { cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; cardEl.style.transform = rating === 'easy' ? `translate(1000px, 0) rotate(30deg)` : `translate(-1000px, 0) rotate(-30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard(rating); resetCardPosition(); }, 300); }
 
-        // --- KARTEN HINZUFÜGEN & IMPORT ---
+        // --- HINZUFÜGEN / IMPORT ---
         function populateSelects() {
             const html = decks.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-            document.getElementById('card-deck-select').innerHTML = html;
-            document.getElementById('import-deck-select').innerHTML = html;
+            document.getElementById('card-deck-select').innerHTML = html; document.getElementById('import-deck-select').innerHTML = html;
         }
 
         function addCard() {
-            const q = document.getElementById('new-q').value.trim();
-            const a = document.getElementById('new-a').value.trim();
-            const dId = document.getElementById('card-deck-select').value;
-            if (q && a) {
-                cards.push({ id: Date.now(), deckId: dId, q, a, nextReview: Date.now(), streak: 0, reviews: 0 });
-                saveData();
-                document.getElementById('new-q').value = ""; document.getElementById('new-a').value = "";
-                alert("Karte hinzugefügt!");
-            }
+            const q = document.getElementById('new-q').value.trim(), a = document.getElementById('new-a').value.trim(), dId = document.getElementById('card-deck-select').value;
+            if (q && a) { cards.push({ id: Date.now(), deckId: dId, q, a, nextReview: Date.now(), streak: 0, reviews: 0 }); saveData(); document.getElementById('new-q').value = ""; document.getElementById('new-a').value = ""; alert("Karte hinzugefügt!"); }
         }
 
         function importCards() {
-            const text = document.getElementById('import-text').value;
-            const targetDeck = document.getElementById('import-deck-select').value;
+            const text = document.getElementById('import-text').value, targetDeck = document.getElementById('import-deck-select').value;
             if(!text.trim()) return;
-            
-            const lines = text.split('\n');
             let count = 0;
-            
-            lines.forEach(line => {
+            text.split('\n').forEach(line => {
                 const parts = line.split(';');
-                if (parts.length >= 2) {
-                    cards.push({
-                        id: Date.now() + Math.random(),
-                        deckId: targetDeck,
-                        q: parts[0].trim(),
-                        a: parts[1].trim(),
-                        nextReview: Date.now(),
-                        streak: 0,
-                        reviews: 0
-                    });
-                    count++;
-                }
+                if (parts.length >= 2) { cards.push({ id: Date.now() + Math.random(), deckId: targetDeck, q: parts[0].trim(), a: parts[1].trim(), nextReview: Date.now(), streak: 0, reviews: 0 }); count++; }
             });
-            
-            saveData();
-            document.getElementById('import-text').value = '';
-            alert(`${count} Karten erfolgreich importiert!`);
+            saveData(); document.getElementById('import-text').value = ''; alert(`${count} Karten importiert!`);
         }
 
-        // Live-Timer check
         setInterval(() => {
-            if (!document.getElementById('view-learn').classList.contains('hidden')) {
-                const validDeckIds = getDeckAndSubDeckIds(activeDeckId);
-                const contextCards = cards.filter(c => validDeckIds.includes(c.deckId));
+            if (!document.getElementById('view-learn').classList.contains('hidden') && activeDeckId) {
+                const contextCards = cards.filter(c => getDeckAndSubDeckIds(activeDeckId).includes(c.deckId));
                 const dueCards = contextCards.filter(c => c.nextReview <= Date.now());
-                
-                if (dueCards.length > 0 && document.getElementById('stack-container').classList.contains('hidden')) {
-                    nextCard(); 
-                } else if (dueCards.length === 0) {
-                    updateTimerText(contextCards);
-                }
+                if (dueCards.length > 0 && document.getElementById('stack-container').classList.contains('hidden')) nextCard(); 
+                else if (dueCards.length === 0) updateTimerText(contextCards);
             }
         }, 1000); 
 
-        // Start (lade Decks)
         renderDecks();
     </script>
 </body>
