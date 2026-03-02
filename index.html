@@ -58,19 +58,13 @@
         
         /* Modals */
         .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .modal { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .modal { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-height: 90vh; overflow-y: auto; }
         
         /* Coin Animation */
         .float-coin { position: absolute; font-size: 2rem; font-weight: bold; color: var(--gold); text-shadow: 0 2px 5px rgba(0,0,0,0.2); pointer-events: none; z-index: 50; animation: floatUp 0.8s ease-out forwards; }
         
-        @keyframes floatUp {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
-            100% { opacity: 0; transform: translate(-50%, -150px) scale(1.5); }
-        }
-        @keyframes popIn {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+        @keyframes floatUp { 0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); } 100% { opacity: 0; transform: translate(-50%, -150px) scale(1.5); } }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -151,14 +145,21 @@
 
     <div id="edit-deck-modal" class="modal-overlay hidden">
         <div class="modal">
-            <h3>Stapel bearbeiten</h3>
+            <h3>Stapel Einstellungen</h3>
             <input type="hidden" id="edit-deck-id">
-            <label style="font-size: 0.8rem; font-weight:bold;">Name</label>
+            
+            <label style="font-size: 0.8rem; font-weight:bold; display:block; text-align:left;">Name</label>
             <input type="text" id="edit-deck-name">
-            <label style="font-size: 0.8rem; font-weight:bold;">Verschieben nach</label>
+            
+            <label style="font-size: 0.8rem; font-weight:bold; display:block; text-align:left;">Verschieben nach</label>
             <select id="edit-deck-parent"></select>
             
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">
+            
+            <label style="font-size: 0.8rem; font-weight:bold; display:block; text-align:left;">Karten importieren (Frage;Antwort)</label>
+            <textarea id="modal-import-text" placeholder="Hund;dog&#10;Katze;cat" style="min-height: 80px;"></textarea>
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
                 <button class="action-btn btn-primary" onclick="saveDeckEdit()">Speichern</button>
                 <button class="action-btn" style="background:#888;" onclick="closeModal('edit-deck-modal')">Abbrechen</button>
             </div>
@@ -180,66 +181,22 @@
         let coins = parseInt(localStorage.getItem('flashCoins')) || 0;
         document.getElementById('coin-count').innerText = coins;
 
-        const milestones = {
-            10: "Anfänger 🥉",
-            50: "Fleißiges Bienchen 🐝",
-            100: "Lern-Maschine 🤖",
-            250: "Vokabel-Profi 🥈",
-            500: "Meisterdenker 🥇",
-            1000: "Gehirn-Legende 👑"
-        };
-
-        // Synthetisiert einen entspannten Ding-Sound ohne externe Dateien
+        const milestones = { 10: "Anfänger 🥉", 50: "Fleißiges Bienchen 🐝", 100: "Lern-Maschine 🤖", 250: "Vokabel-Profi 🥈", 500: "Meisterdenker 🥇", 1000: "Gehirn-Legende 👑" };
         let audioCtx;
+        
         function playDingSound() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            
-            osc.type = 'sine'; // Weicher Sound
-            osc.frequency.setValueAtTime(800, audioCtx.currentTime); 
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1); 
-            
-            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); // Fade in
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3); // Fade out
-            
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.3);
+            const osc = audioCtx.createOscillator(), gainNode = audioCtx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1); 
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3); 
+            osc.connect(gainNode); gainNode.connect(audioCtx.destination); osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.3);
         }
 
         function triggerCoinReward() {
-            // Sound spielen
-            playDingSound();
-
-            // Coins erhöhen
-            coins++;
-            localStorage.setItem('flashCoins', coins);
-            document.getElementById('coin-count').innerText = coins;
-
-            // Visuelles "+1" erzeugen
-            const floatingText = document.createElement('div');
-            floatingText.className = 'float-coin';
-            floatingText.innerText = '+1 🪙';
-            // Startposition genau in der Mitte der Karte
-            floatingText.style.top = '40%';
-            floatingText.style.left = '50%';
-            document.getElementById('view-learn').appendChild(floatingText);
-            
-            // Element nach Animation entfernen
-            setTimeout(() => floatingText.remove(), 800);
-
-            // Meilenstein Check
-            if (milestones[coins]) {
-                document.getElementById('level-title').innerText = milestones[coins];
-                document.getElementById('level-desc').innerText = `Krass! Du hast ${coins} Karten gelernt!`;
-                document.getElementById('level-up-modal').classList.remove('hidden');
-            }
+            playDingSound(); coins++; localStorage.setItem('flashCoins', coins); document.getElementById('coin-count').innerText = coins;
+            const floatEl = document.createElement('div'); floatEl.className = 'float-coin'; floatEl.innerText = '+1 🪙'; floatEl.style.top = '40%'; floatEl.style.left = '50%'; document.getElementById('view-learn').appendChild(floatEl); setTimeout(() => floatEl.remove(), 800);
+            if (milestones[coins]) { document.getElementById('level-title').innerText = milestones[coins]; document.getElementById('level-desc').innerText = `Krass! Du hast ${coins} Karten gelernt!`; document.getElementById('level-up-modal').classList.remove('hidden'); }
         }
 
         // --- DATENSTRUKTUR ---
@@ -249,44 +206,25 @@
         let currentCardList = []; 
         let currentCardIndex = -1;
 
-        function saveData() {
-            localStorage.setItem('flashDecks', JSON.stringify(decks));
-            localStorage.setItem('flashCards', JSON.stringify(cards));
-        }
-
-        function getDeckAndSubDeckIds(parentId) {
-            let ids = [parentId];
-            const children = decks.filter(d => d.parentId === parentId);
-            for (let child of children) ids = ids.concat(getDeckAndSubDeckIds(child.id));
-            return ids;
-        }
+        function saveData() { localStorage.setItem('flashDecks', JSON.stringify(decks)); localStorage.setItem('flashCards', JSON.stringify(cards)); }
+        function getDeckAndSubDeckIds(parentId) { let ids = [parentId]; const children = decks.filter(d => d.parentId === parentId); for (let child of children) ids = ids.concat(getDeckAndSubDeckIds(child.id)); return ids; }
 
         function switchView(view) {
-            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
-            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-            document.getElementById('view-' + view).classList.remove('hidden');
-            document.getElementById('nav-' + view).classList.add('active');
-            
+            document.querySelectorAll('main').forEach(m => m.classList.add('hidden')); document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById('view-' + view).classList.remove('hidden'); document.getElementById('nav-' + view).classList.add('active');
             if (view === 'decks') renderDecks();
-            if (view === 'learn') {
-                if(!activeDeckId && decks.length > 0) activeDeckId = decks[0].id;
-                if(activeDeckId) startLearning(activeDeckId);
-            }
+            if (view === 'learn') { if(!activeDeckId && decks.length > 0) activeDeckId = decks[0].id; if(activeDeckId) startLearning(activeDeckId); }
             if (view === 'add') populateSelects();
         }
 
         // --- STAPEL ---
         function renderDecks() {
-            const list = document.getElementById('deck-list');
-            list.innerHTML = '';
+            const list = document.getElementById('deck-list'); list.innerHTML = '';
             function drawNode(parentId, level) {
                 decks.filter(d => d.parentId === parentId).forEach(deck => {
                     const deckIds = getDeckAndSubDeckIds(deck.id);
                     const dueCount = cards.filter(c => deckIds.includes(c.deckId) && c.nextReview <= Date.now()).length;
-                    
-                    const div = document.createElement('div');
-                    div.className = 'deck-item';
-                    div.style.marginLeft = `${level * 20}px`;
+                    const div = document.createElement('div'); div.className = 'deck-item'; div.style.marginLeft = `${level * 20}px`;
                     div.innerHTML = `
                         <div class="deck-info" onclick="startLearning('${deck.id}')">
                             <div class="deck-title">${deck.name}</div>
@@ -294,29 +232,24 @@
                         </div>
                         <div class="deck-actions"><button onclick="openEditModal('${deck.id}')">✏️</button></div>
                     `;
-                    list.appendChild(div);
-                    drawNode(deck.id, level + 1); 
+                    list.appendChild(div); drawNode(deck.id, level + 1); 
                 });
             }
             drawNode(null, 0); 
         }
 
-        function createDeck() {
-            const name = document.getElementById('new-deck-name').value.trim();
-            if (name) { decks.push({ id: 'd_' + Date.now(), name: name, parentId: null }); saveData(); document.getElementById('new-deck-name').value = ''; renderDecks(); }
-        }
+        function createDeck() { const name = document.getElementById('new-deck-name').value.trim(); if (name) { decks.push({ id: 'd_' + Date.now(), name: name, parentId: null }); saveData(); document.getElementById('new-deck-name').value = ''; renderDecks(); } }
 
         function openEditModal(id) {
+            activeDeckId = id; // Stapel sofort aktiv setzen!
             const deck = decks.find(d => d.id === id);
             document.getElementById('edit-deck-id').value = deck.id;
             document.getElementById('edit-deck-name').value = deck.name;
+            document.getElementById('modal-import-text').value = ''; // Importfeld leeren
+            
             const parentSelect = document.getElementById('edit-deck-parent');
             parentSelect.innerHTML = '<option value="null">-- Kein Überstapel --</option>';
-            decks.forEach(d => {
-                if (d.id !== deck.id && !getDeckAndSubDeckIds(deck.id).includes(d.id)) {
-                    parentSelect.innerHTML += `<option value="${d.id}" ${d.id === deck.parentId ? 'selected' : ''}>${d.name}</option>`;
-                }
-            });
+            decks.forEach(d => { if (d.id !== deck.id && !getDeckAndSubDeckIds(deck.id).includes(d.id)) parentSelect.innerHTML += `<option value="${d.id}" ${d.id === deck.parentId ? 'selected' : ''}>${d.name}</option>`; });
             document.getElementById('edit-deck-modal').classList.remove('hidden');
         }
 
@@ -326,161 +259,106 @@
             deck.name = document.getElementById('edit-deck-name').value.trim() || deck.name;
             const pId = document.getElementById('edit-deck-parent').value;
             deck.parentId = pId === "null" ? null : pId;
-            saveData(); closeModal('edit-deck-modal'); renderDecks();
+            
+            // NEU: Import direkt aus dem Modal abfangen
+            const importText = document.getElementById('modal-import-text').value;
+            let importCount = 0;
+            if (importText.trim()) {
+                importText.split('\n').forEach(line => {
+                    const parts = line.split(';');
+                    if (parts.length >= 2) { 
+                        cards.push({ id: Date.now() + Math.random(), deckId: id, q: parts[0].trim(), a: parts[1].trim(), nextReview: Date.now(), streak: 0, reviews: 0 }); 
+                        importCount++; 
+                    }
+                });
+            }
+
+            saveData(); 
+            closeModal('edit-deck-modal'); 
+            renderDecks();
+            
+            if (importCount > 0) alert(`${importCount} Karten in "${deck.name}" importiert!`);
         }
 
         function deleteDeck() {
             const id = document.getElementById('edit-deck-id').value;
             if(confirm("Diesen Stapel inkl. ALLER Unterstapel und Karten löschen?")) {
                 const idsToDelete = getDeckAndSubDeckIds(id);
-                decks = decks.filter(d => !idsToDelete.includes(d.id));
-                cards = cards.filter(c => !idsToDelete.includes(c.deckId));
-                saveData(); if(activeDeckId === id) activeDeckId = null;
-                closeModal('edit-deck-modal'); renderDecks();
+                decks = decks.filter(d => !idsToDelete.includes(d.id)); cards = cards.filter(c => !idsToDelete.includes(c.deckId));
+                saveData(); if(activeDeckId === id) activeDeckId = null; closeModal('edit-deck-modal'); renderDecks();
             }
         }
 
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
         // --- LERNEN ---
-        function startLearning(deckId) {
-            activeDeckId = deckId;
-            const deck = decks.find(d => d.id === deckId);
-            document.getElementById('active-deck-title').innerText = deck ? `Lerne: ${deck.name}` : '';
-            switchView('learn');
-            nextCard();
-        }
+        function startLearning(deckId) { activeDeckId = deckId; const deck = decks.find(d => d.id === deckId); document.getElementById('active-deck-title').innerText = deck ? `Lerne: ${deck.name}` : ''; switchView('learn'); nextCard(); }
 
         function updateStats() {
             if(!activeDeckId) return;
             const contextCards = cards.filter(c => getDeckAndSubDeckIds(activeDeckId).includes(c.deckId));
-            let nNew = 0, nLearn = 0, nDue = 0;
-            const now = Date.now();
+            let nNew = 0, nLearn = 0, nDue = 0; const now = Date.now();
             contextCards.forEach(c => { if (c.reviews === 0) nNew++; else if (c.streak < 2) nLearn++; else if (c.nextReview <= now) nDue++; });
             document.getElementById('stat-new').innerText = `${nNew} Neu`; document.getElementById('stat-learn').innerText = `${nLearn} Lernen`; document.getElementById('stat-due').innerText = `${nDue} Fällig`;
             return contextCards;
         }
 
         function nextCard() {
-            const contextCards = updateStats();
-            if(!contextCards) return;
-            
+            const contextCards = updateStats(); if(!contextCards) return;
             currentCardList = contextCards.filter(c => c.nextReview <= Date.now());
-            if (currentCardList.length === 0) {
-                document.getElementById('stack-container').classList.add('hidden');
-                document.getElementById('show-btn').classList.add('hidden');
-                document.getElementById('feedback-btns').classList.add('hidden');
-                document.getElementById('done-msg').classList.remove('hidden');
-                updateTimerText(contextCards);
-                currentCardIndex = -1;
-            } else {
-                currentCardIndex = cards.indexOf(currentCardList[Math.floor(Math.random() * currentCardList.length)]);
-                document.getElementById('stack-container').classList.remove('hidden');
-                document.getElementById('done-msg').classList.add('hidden');
-                document.getElementById('question-text').innerText = cards[currentCardIndex].q;
-                document.getElementById('answer-text').innerText = cards[currentCardIndex].a;
-                document.getElementById('answer-text').classList.add('hidden');
-                document.getElementById('swipe-hint').innerText = "Tippen zum Umdrehen";
-                document.getElementById('show-btn').classList.remove('hidden');
-                document.getElementById('feedback-btns').classList.add('hidden');
-                document.getElementById('card-bg').style.display = currentCardList.length > 1 ? 'block' : 'none';
-            }
+            if (currentCardList.length === 0) { document.getElementById('stack-container').classList.add('hidden'); document.getElementById('show-btn').classList.add('hidden'); document.getElementById('feedback-btns').classList.add('hidden'); document.getElementById('done-msg').classList.remove('hidden'); updateTimerText(contextCards); currentCardIndex = -1; } 
+            else { currentCardIndex = cards.indexOf(currentCardList[Math.floor(Math.random() * currentCardList.length)]); document.getElementById('stack-container').classList.remove('hidden'); document.getElementById('done-msg').classList.add('hidden'); document.getElementById('question-text').innerText = cards[currentCardIndex].q; document.getElementById('answer-text').innerText = cards[currentCardIndex].a; document.getElementById('answer-text').classList.add('hidden'); document.getElementById('swipe-hint').innerText = "Tippen zum Umdrehen"; document.getElementById('show-btn').classList.remove('hidden'); document.getElementById('feedback-btns').classList.add('hidden'); document.getElementById('card-bg').style.display = currentCardList.length > 1 ? 'block' : 'none'; }
         }
 
         function updateTimerText(contextCards) {
-            const futureCards = contextCards.filter(c => c.nextReview > Date.now());
-            const timerEl = document.getElementById('next-timer');
+            const futureCards = contextCards.filter(c => c.nextReview > Date.now()); const timerEl = document.getElementById('next-timer');
             if (futureCards.length === 0) { timerEl.innerText = "Morgen"; return; }
             const diff = Math.min(...futureCards.map(c => c.nextReview)) - Date.now();
             if (diff <= 0) { timerEl.innerText = "00:00"; return; }
-            const ts = Math.floor(diff / 1000), h = Math.floor(ts / 3600), m = Math.floor((ts % 3600) / 60), s = ts % 60;
-            timerEl.innerText = h > 0 ? `${h}h ${m}m` : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            const ts = Math.floor(diff / 1000), h = Math.floor(ts / 3600), m = Math.floor((ts % 3600) / 60), s = ts % 60; timerEl.innerText = h > 0 ? `${h}h ${m}m` : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
         function showAnswer() {
-            // Um den Browser AudioContext zu aktivieren, muss hier einmal interagiert werden!
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-
-            document.getElementById('answer-text').classList.remove('hidden');
-            document.getElementById('show-btn').classList.add('hidden');
-            document.getElementById('feedback-btns').classList.remove('hidden');
-            document.getElementById('swipe-hint').innerText = "Wischen zum Bewerten";
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('answer-text').classList.remove('hidden'); document.getElementById('show-btn').classList.add('hidden'); document.getElementById('feedback-btns').classList.remove('hidden'); document.getElementById('swipe-hint').innerText = "Wischen zum Bewerten";
         }
 
         function rateCard(rating) {
-            if (currentCardIndex === -1) return;
-            
-            triggerCoinReward(); // BELOHNUNG AUSLÖSEN!
-
-            const now = Date.now();
-            let card = cards[currentCardIndex];
-            card.reviews++; 
-            if (rating === 'easy') {
-                card.nextReview = now + (card.streak === 0 ? 10 * 60000 : 24 * 3600000);
-                card.streak++;
-            } else {
-                card.nextReview = now + 60000; 
-                card.streak = 0;
-            }
-            saveData();
-            nextCard();
+            if (currentCardIndex === -1) return; triggerCoinReward(); 
+            const now = Date.now(); let card = cards[currentCardIndex]; card.reviews++; 
+            if (rating === 'easy') { card.nextReview = now + (card.streak === 0 ? 10 * 60000 : 24 * 3600000); card.streak++; } else { card.nextReview = now + 60000; card.streak = 0; }
+            saveData(); nextCard();
         }
 
         // --- GESTENSTEUERUNG ---
-        const cardEl = document.getElementById('card-container'), hintEl = document.getElementById('swipe-hint');
-        let isDragging = false, startX = 0, startY = 0;
-
+        const cardEl = document.getElementById('card-container'), hintEl = document.getElementById('swipe-hint'); let isDragging = false, startX = 0, startY = 0;
         cardEl.addEventListener('click', () => { if (!isDragging && document.getElementById('answer-text').classList.contains('hidden')) showAnswer(); });
         cardEl.addEventListener('touchstart', e => { if (document.getElementById('answer-text').classList.contains('hidden')) return; isDragging = true; startX = e.touches[0].clientX; startY = e.touches[0].clientY; cardEl.style.transition = 'none'; }, {passive: true});
-        cardEl.addEventListener('touchmove', e => {
-            if (!isDragging) return;
-            const deltaX = e.touches[0].clientX - startX;
-            cardEl.style.transform = `translate(${deltaX}px, ${e.touches[0].clientY - startY}px) rotate(${deltaX * 0.05}deg)`;
-            if (deltaX > 60) { hintEl.innerText = "Einfach 👉"; hintEl.style.color = "var(--success)"; } else if (deltaX < -60) { hintEl.innerText = "👈 Schwer"; hintEl.style.color = "var(--danger)"; } else { hintEl.innerText = "Wischen zum Bewerten"; hintEl.style.color = "#aaa"; }
-        }, {passive: true});
-        cardEl.addEventListener('touchend', e => {
-            if (!isDragging) return;
-            isDragging = false;
-            const deltaX = e.changedTouches[0].clientX - startX;
-            cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; 
-            if (deltaX > 100) { cardEl.style.transform = `translate(1000px, 0) rotate(30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard('easy'); resetCardPosition(); }, 300); } 
-            else if (deltaX < -100) { cardEl.style.transform = `translate(-1000px, 0) rotate(-30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard('hard'); resetCardPosition(); }, 300); } 
-            else { resetCardPosition(); }
-        }, {passive: true});
+        cardEl.addEventListener('touchmove', e => { if (!isDragging) return; const deltaX = e.touches[0].clientX - startX; cardEl.style.transform = `translate(${deltaX}px, ${e.touches[0].clientY - startY}px) rotate(${deltaX * 0.05}deg)`; if (deltaX > 60) { hintEl.innerText = "Einfach 👉"; hintEl.style.color = "var(--success)"; } else if (deltaX < -60) { hintEl.innerText = "👈 Schwer"; hintEl.style.color = "var(--danger)"; } else { hintEl.innerText = "Wischen zum Bewerten"; hintEl.style.color = "#aaa"; } }, {passive: true});
+        cardEl.addEventListener('touchend', e => { if (!isDragging) return; isDragging = false; const deltaX = e.changedTouches[0].clientX - startX; cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; if (deltaX > 100) { cardEl.style.transform = `translate(1000px, 0) rotate(30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard('easy'); resetCardPosition(); }, 300); } else if (deltaX < -100) { cardEl.style.transform = `translate(-1000px, 0) rotate(-30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard('hard'); resetCardPosition(); }, 300); } else { resetCardPosition(); } }, {passive: true});
         function resetCardPosition() { cardEl.style.transform = ''; cardEl.style.opacity = '1'; hintEl.style.color = "#aaa"; }
         function rateCardButton(rating) { cardEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'; cardEl.style.transform = rating === 'easy' ? `translate(1000px, 0) rotate(30deg)` : `translate(-1000px, 0) rotate(-30deg)`; cardEl.style.opacity = '0'; setTimeout(() => { rateCard(rating); resetCardPosition(); }, 300); }
 
-        // --- HINZUFÜGEN / IMPORT ---
+        // --- HINZUFÜGEN / IMPORT (Global) ---
         function populateSelects() {
             const html = decks.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-            document.getElementById('card-deck-select').innerHTML = html; document.getElementById('import-deck-select').innerHTML = html;
-        }
-
-        function addCard() {
-            const q = document.getElementById('new-q').value.trim(), a = document.getElementById('new-a').value.trim(), dId = document.getElementById('card-deck-select').value;
-            if (q && a) { cards.push({ id: Date.now(), deckId: dId, q, a, nextReview: Date.now(), streak: 0, reviews: 0 }); saveData(); document.getElementById('new-q').value = ""; document.getElementById('new-a').value = ""; alert("Karte hinzugefügt!"); }
-        }
-
-        function importCards() {
-            const text = document.getElementById('import-text').value, targetDeck = document.getElementById('import-deck-select').value;
-            if(!text.trim()) return;
-            let count = 0;
-            text.split('\n').forEach(line => {
-                const parts = line.split(';');
-                if (parts.length >= 2) { cards.push({ id: Date.now() + Math.random(), deckId: targetDeck, q: parts[0].trim(), a: parts[1].trim(), nextReview: Date.now(), streak: 0, reviews: 0 }); count++; }
-            });
-            saveData(); document.getElementById('import-text').value = ''; alert(`${count} Karten importiert!`);
-        }
-
-        setInterval(() => {
-            if (!document.getElementById('view-learn').classList.contains('hidden') && activeDeckId) {
-                const contextCards = cards.filter(c => getDeckAndSubDeckIds(activeDeckId).includes(c.deckId));
-                const dueCards = contextCards.filter(c => c.nextReview <= Date.now());
-                if (dueCards.length > 0 && document.getElementById('stack-container').classList.contains('hidden')) nextCard(); 
-                else if (dueCards.length === 0) updateTimerText(contextCards);
+            const cardSelect = document.getElementById('card-deck-select');
+            const importSelect = document.getElementById('import-deck-select');
+            
+            cardSelect.innerHTML = html; 
+            importSelect.innerHTML = html;
+            
+            // NEU: Merkt sich den zuletzt angeklickten / bearbeiteten Stapel!
+            if (activeDeckId) {
+                cardSelect.value = activeDeckId;
+                importSelect.value = activeDeckId;
             }
-        }, 1000); 
+        }
+
+        function addCard() { const q = document.getElementById('new-q').value.trim(), a = document.getElementById('new-a').value.trim(), dId = document.getElementById('card-deck-select').value; if (q && a) { cards.push({ id: Date.now(), deckId: dId, q, a, nextReview: Date.now(), streak: 0, reviews: 0 }); saveData(); document.getElementById('new-q').value = ""; document.getElementById('new-a').value = ""; alert("Karte hinzugefügt!"); } }
+        function importCards() { const text = document.getElementById('import-text').value, targetDeck = document.getElementById('import-deck-select').value; if(!text.trim()) return; let count = 0; text.split('\n').forEach(line => { const parts = line.split(';'); if (parts.length >= 2) { cards.push({ id: Date.now() + Math.random(), deckId: targetDeck, q: parts[0].trim(), a: parts[1].trim(), nextReview: Date.now(), streak: 0, reviews: 0 }); count++; } }); saveData(); document.getElementById('import-text').value = ''; alert(`${count} Karten importiert!`); }
+
+        setInterval(() => { if (!document.getElementById('view-learn').classList.contains('hidden') && activeDeckId) { const contextCards = cards.filter(c => getDeckAndSubDeckIds(activeDeckId).includes(c.deckId)); const dueCards = contextCards.filter(c => c.nextReview <= Date.now()); if (dueCards.length > 0 && document.getElementById('stack-container').classList.contains('hidden')) nextCard(); else if (dueCards.length === 0) updateTimerText(contextCards); } }, 1000); 
 
         renderDecks();
     </script>
